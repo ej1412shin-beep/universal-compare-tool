@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Text Compare - 통합 텍스트 비교 도구</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0ea5e9;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --surface: #1e293b;
+                --text: #f1f5f9;
+                --border: #334155;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), #0284c7);
+            color: white;
+            padding: 2.5rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        /* 탭 */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+            opacity: 0.6;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            opacity: 0.8;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            opacity: 1;
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .panel-content {
+            background: #f9f9f9;
+        }
+
+        #canvas1, #canvas2 {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: none;
+            max-width: 100%;
+            height: auto;
+            cursor: grab;
+            transition: transform 0.1s ease-out;
+        }
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 1.2rem;
+            opacity: 0.7;
+        }
+
+        /* TXT 모드 */
+        .txt-input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .textarea {
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Menlo', 'Monaco', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 200px;
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.2s;
+        }
+
+        .textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .file-upload-hint {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-top: 0.75rem;
+            text-align: center;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        /* 이미지 모드 */
+        .image-upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .upload-box {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg);
+        }
+
+        .upload-box:hover {
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.05);
+        }
+
+        .upload-box.has-file {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .upload-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .upload-hint {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-top: 0.5rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        /* 진행률 */
+        .progress-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: none;
+        }
+
+        .progress-item {
+            margin-bottom: 1rem;
+        }
+
+        .progress-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary));
+            transition: width 0.3s ease;
+        }
+
+        /* 비교 모드 */
+        .mode-selector {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            display: none;
+        }
+
+        .mode-selector.show {
+            display: flex;
+        }
+
+        .mode-btn {
+            padding: 0.65rem 1.25rem;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--primary);
+            background: var(--bg);
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* 통계 */
+        .stats-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .stats-section.show {
+            display: grid;
+        }
+
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value.success { color: var(--success); }
+        .stat-value.danger { color: var(--danger); }
+        .stat-value.primary { color: var(--primary); }
+
+        .stat-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            opacity: 0.7;
+        }
+
+        /* 결과 */
+        .result-box {
+            background: var(--bg);
+            border: 2px solid var(--success);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .result-box.different {
+            border-color: var(--danger);
+        }
+
+        .result-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-text {
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+
+        /* 비교 섹션 */
+        .compare-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .compare-section.show {
+            display: grid;
+        }
+
+        .compare-panel {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: var(--bg);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 0;
+            background: #f9f9f9;
+            max-height: 600px;
+            overflow: auto;
+        }
+
+        #canvas1, #canvas2 {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            cursor: grab;
+            transition: transform 0.1s ease-out;
+        }
+
+        #canvas1:active, #canvas2:active {
+            cursor: grabbing;
+        }
+
+        .extracted-text {
+            font-family: 'Menlo', 'Monaco', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .diff-content {
+            font-family: 'Menlo', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+
+        .diff-word {
+            background: rgba(239, 68, 68, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            border-left: 2px solid var(--danger);
+        }
+
+        .added-word {
+            background: rgba(16, 185, 129, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            border-left: 2px solid var(--success);
+        }
+
+        .same-word {
+            opacity: 0.6;
+        }
+
+        /* 버튼 */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .button-group.show {
+            display: flex;
+        }
+
+        .btn {
+            padding: 0.8rem 1.6rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-delete {
+            padding: 0.4rem 0.8rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+        }
+
+        /* 범례 박스 */
+        .legend-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .legend-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .legend-color {
+            min-width: 60px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .copy-preview-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            max-height: 70vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .copy-preview-modal.show {
+            display: block;
+        }
+
+        .copy-preview-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .copy-preview-overlay.show {
+            display: block;
+        }
+
+        .copy-preview-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .copy-preview-content {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-family: 'Menlo', 'Monaco', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .copy-preview-footer {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .copy-preview-footer .btn {
+            padding: 0.65rem 1.2rem;
+            font-size: 0.9rem;
+        }
+
+        /* 상태 메시지 */
+        .status-message {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-loading {
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            margin-right: 0.5rem;
+            background: currentColor;
+            border-radius: 50%;
+            animation: spin 1.5s infinite;
+        }
+
+        @keyframes spin {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .info-box {
+            background: rgba(14, 165, 233, 0.05);
+            border-left: 4px solid var(--primary);
+            padding: 1.2rem;
+            border-radius: 6px;
+            margin-top: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .info-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem 1rem;
+            opacity: 0.6;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .txt-input-section, .image-upload-section, .compare-section, .stats-section {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+                margin: 1rem;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                flex: 1;
+                font-size: 0.9rem;
+                padding: 0.75rem;
+            }
+
+            .copy-preview-modal {
+                max-width: 90vw;
+                max-height: 80vh;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Universal Text Compare</h1>
+        <p>TXT 비교 / 파일 비교(JPG/PNG/GIF) - 통합 도구</p>
+    </div>
+
+    <div class="container">
+        <!-- 탭 -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('txt')">📝 텍스트 비교</button>
+            <button class="tab-btn" onclick="switchTab('image')">📄 파일 비교</button>
+        </div>
+
+        <!-- 상태 메시지 -->
+        <div id="status-message"></div>
+
+        <!-- ============ TXT 모드 ============ -->
+        <div id="txt-tab" class="tab-content active">
+            <div class="section-title">텍스트 입력 또는 파일 업로드</div>
+            
+            <div class="txt-input-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div class="input-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <label class="input-label">텍스트 1</label>
+                        <button class="btn btn-delete" onclick="clearTxt1()" title="텍스트 삭제">✕</button>
+                    </div>
+                    <textarea id="txt1" class="textarea" placeholder="텍스트를 직접 입력하세요" style="min-height: 400px;"></textarea>
+                    <div class="file-upload-hint">또는 TXT 파일 업로드</div>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="txt-file1" accept=".txt">
+                        <button class="btn btn-secondary" onclick="document.getElementById('txt-file1').click()" style="flex: 0.3; padding: 0.5rem;">선택</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <label class="input-label">텍스트 2</label>
+                        <button class="btn btn-delete" onclick="clearTxt2()" title="텍스트 삭제">✕</button>
+                    </div>
+                    <textarea id="txt2" class="textarea" placeholder="텍스트를 직접 입력하세요" style="min-height: 400px;"></textarea>
+                    <div class="file-upload-hint">또는 TXT 파일 업로드</div>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="txt-file2" accept=".txt">
+                        <button class="btn btn-secondary" onclick="document.getElementById('txt-file2').click()" style="flex: 0.3; padding: 0.5rem;">선택</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mode-selector" id="txt-mode-selector">
+                <button class="mode-btn active" data-mode="word">상세 비교</button>
+                <button class="mode-btn" data-mode="sentence">문장 단위</button>
+            </div>
+
+            <div id="txt-result-box" class="result-box"></div>
+
+            <div id="txt-compare" class="compare-section">
+                <div class="compare-panel">
+                    <div class="panel-header">📝 텍스트 1 비교</div>
+                    <div class="panel-content">
+                        <div class="diff-content" id="txt-diff1"></div>
+                    </div>
+                </div>
+                <div class="compare-panel">
+                    <div class="panel-header">📝 텍스트 2 비교</div>
+                    <div class="panel-content">
+                        <div class="diff-content" id="txt-diff2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="txt-legend" class="legend-box" style="display: none;">
+                <div class="legend-title">📌 색상 안내</div>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: rgba(239, 68, 68, 0.2); border-left: 3px solid #ef4444;"></span>
+                        <span><strong>빨간색</strong> - 텍스트 1에만 있음 (삭제됨)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: rgba(16, 185, 129, 0.2); border-left: 3px solid #10b981;"></span>
+                        <span><strong>초록색</strong> - 텍스트 2에만 있음 (추가됨)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: transparent; border-left: 3px solid #ccc;"></span>
+                        <span><strong>회색</strong> - 텍스트 1, 2 모두 있음 (일치)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="txt-stats" class="stats-section">
+                <div class="stat-card">
+                    <div class="stat-value primary" id="txt-similarity">0%</div>
+                    <div class="stat-label">유사도</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value success" id="txt-matched">0</div>
+                    <div class="stat-label">일치</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value danger" id="txt-different">0</div>
+                    <div class="stat-label">차이</div>
+                </div>
+            </div>
+
+            <!-- 차이나는 문구 상세 -->
+            <div id="txt-differences-detail" style="display: none; margin-top: 2rem;">
+                <div class="section-title">📋 차이나는 문구 상세</div>
+                <div id="txt-diff-list" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;">
+                    <div style="color: var(--text); opacity: 0.7; text-align: center; padding: 1rem;">비교를 수행하세요</div>
+                </div>
+            </div>
+
+            <div id="txt-buttons" class="button-group">
+                <button class="btn btn-secondary" onclick="resetTxt()">초기화</button>
+                <button class="btn btn-primary" onclick="copyTxt()">결과 복사</button>
+            </div>
+        </div>
+
+        <!-- ============ 이미지 모드 ============ -->
+        <div id="image-tab" class="tab-content">
+            <div class="section-title">파일 업로드 (JPG/PNG/GIF)</div>
+
+            <div class="image-upload-section">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div class="section-title" style="margin-bottom: 0;">파일 1 (JPG/PNG/GIF)</div>
+                        <button class="btn btn-delete" onclick="clearImg1()" title="파일 삭제" style="display: none;" id="delete-img1">✕</button>
+                    </div>
+                    <div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--primary); font-weight: 500; min-height: 20px;" id="filename1"></div>
+                    <div class="upload-box" id="upload1" onclick="document.getElementById('img-file1').click()">
+                        <div class="upload-icon">📄</div>
+                        <label class="upload-label">파일 선택</label>
+                        <div class="upload-hint">JPG, PNG, GIF 파일</div>
+                        <img id="preview1" class="preview-image" style="display: none;">
+                    </div>
+                    <input type="file" id="img-file1" accept="image/*">
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div class="section-title" style="margin-bottom: 0;">파일 2 (JPG/PNG/GIF)</div>
+                        <button class="btn btn-delete" onclick="clearImg2()" title="파일 삭제" style="display: none;" id="delete-img2">✕</button>
+                    </div>
+                    <div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--primary); font-weight: 500; min-height: 20px;" id="filename2"></div>
+                    <div class="upload-box" id="upload2" onclick="document.getElementById('img-file2').click()">
+                        <div class="upload-icon">📄</div>
+                        <label class="upload-label">파일 선택</label>
+                        <div class="upload-hint">JPG, PNG, GIF 파일</div>
+                        <img id="preview2" class="preview-image" style="display: none;">
+                    </div>
+                    <input type="file" id="img-file2" accept="image/*">
+                </div>
+            </div>
+
+            <div id="progress-section" class="progress-section">
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>파일 1 처리 중</span>
+                        <span id="progress1">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill1" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>파일 2 처리 중</span>
+                        <span id="progress2">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill2" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mode-selector" id="img-mode-selector">
+                <button class="mode-btn active" data-mode="word">상세 비교</button>
+                <button class="mode-btn" data-mode="sentence">문장 단위</button>
+            </div>
+
+            <div id="img-result-box" class="result-box"></div>
+
+            <div id="img-stats" class="stats-section">
+                <div class="stat-card">
+                    <div class="stat-value primary" id="img-similarity">0%</div>
+                    <div class="stat-label">유사도</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value success" id="img-matched">0</div>
+                    <div class="stat-label">일치</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value danger" id="img-different">0</div>
+                    <div class="stat-label">차이</div>
+                </div>
+            </div>
+
+            <div id="img-compare" class="compare-section">
+                <div class="compare-panel">
+                    <div class="panel-header">
+                        📄 파일 1 (하이라이트 표시)
+                        <div style="float: right; font-size: 0.9rem;">
+                            <button onclick="zoomCanvas('canvas1', -0.2)" style="padding: 4px 8px; cursor: pointer;">−</button>
+                            <span id="zoom1-level" style="margin: 0 8px;">100%</span>
+                            <button onclick="zoomCanvas('canvas1', 0.2)" style="padding: 4px 8px; cursor: pointer;">+</button>
+                            <button onclick="resetZoom('canvas1')" style="padding: 4px 8px; cursor: pointer;">원본</button>
+                        </div>
+                    </div>
+                    <div class="panel-content" id="canvas1-container" style="position: relative; overflow: auto; max-height: 500px; background: #f0f0f0;">
+                        <canvas id="canvas1" style="border: 1px solid var(--border); border-radius: 6px; display: none; max-width: 100%; height: auto; cursor: grab;"></canvas>
+                        <div id="no-preview1" class="empty-state">파일이 로드되지 않았습니다</div>
+                    </div>
+                </div>
+                <div class="compare-panel">
+                    <div class="panel-header">
+                        📄 파일 2 (하이라이트 표시)
+                        <div style="float: right; font-size: 0.9rem;">
+                            <button onclick="zoomCanvas('canvas2', -0.2)" style="padding: 4px 8px; cursor: pointer;">−</button>
+                            <span id="zoom2-level" style="margin: 0 8px;">100%</span>
+                            <button onclick="zoomCanvas('canvas2', 0.2)" style="padding: 4px 8px; cursor: pointer;">+</button>
+                            <button onclick="resetZoom('canvas2')" style="padding: 4px 8px; cursor: pointer;">원본</button>
+                        </div>
+                    </div>
+                    <div class="panel-content" id="canvas2-container" style="position: relative; overflow: auto; max-height: 500px; background: #f0f0f0;">
+                        <canvas id="canvas2" style="border: 1px solid var(--border); border-radius: 6px; display: none; max-width: 100%; height: auto; cursor: grab;"></canvas>
+                        <div id="no-preview2" class="empty-state">파일이 로드되지 않았습니다</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 텍스트 차이 표시 -->
+            <div id="img-diff-details" style="display: none; margin-top: 2rem;">
+                <div class="section-title">📋 인식된 텍스트 차이</div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                    <div>
+                        <div class="panel-header" style="background: rgba(255, 215, 0, 0.1); color: var(--text); margin-bottom: 1rem;">
+                            🟨 파일 1에만 있는 텍스트
+                        </div>
+                        <div id="img-diff-1-only" style="background: #f5f5f5; padding: 1rem; border-radius: 6px; font-size: 0.9rem; line-height: 2; max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0;"></div>
+                    </div>
+                    
+                    <div>
+                        <div class="panel-header" style="background: rgba(0, 255, 0, 0.1); color: var(--text); margin-bottom: 1rem;">
+                            🟩 파일 2에만 있는 텍스트
+                        </div>
+                        <div id="img-diff-2-only" style="background: #f5f5f5; padding: 1rem; border-radius: 6px; font-size: 0.9rem; line-height: 2; max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="img-legend" class="legend-box" style="display: none;">
+                <div class="legend-title">📌 표시 방식</div>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: rgba(255, 215, 0, 0.4); border: 2px solid #FFD700;"></span>
+                        <span><strong>황금색 하이라이트</strong> - 파일 1에서 인식된 텍스트 영역</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: rgba(0, 255, 0, 0.4); border: 2px solid #00FF00;"></span>
+                        <span><strong>라임색 하이라이트</strong> - 파일 2에서 인식된 텍스트 영역</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="font-size: 0.85rem; color: #666;">💡 하단의 텍스트 목록과 함께 확인하면 정확한 차이를 파악할 수 있습니다.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="img-buttons" class="button-group">
+                <button class="btn btn-secondary" onclick="resetImg()">다시 시작</button>
+                <button class="btn btn-primary" onclick="copyImg()">결과 복사</button>
+            </div>
+        </div>
+
+        <!-- 팁 -->
+        <div class="info-box">
+            <div class="info-title">💡 사용 팁</div>
+            <p>
+                <strong>📝 텍스트 비교:</strong> 직접 입력 또는 TXT 파일 업로드. 상세 비교/문장 단위로 비교합니다.<br>
+                <strong>📄 이미지 비교:</strong> JPG, PNG, GIF 파일을 업로드하세요. 자동으로 OCR 인식하여 **이미지에 색상 하이라이트 표시** + **텍스트 목록** 함께 보여줍니다.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ===== 줌 컨트롤 =====
+        let zoomLevels = { canvas1: 1, canvas2: 1 };
+
+        function zoomCanvas(canvasId, zoomAmount) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            zoomLevels[canvasId] += zoomAmount;
+            
+            if (zoomLevels[canvasId] < 0.25) zoomLevels[canvasId] = 0.25;
+            if (zoomLevels[canvasId] > 4) zoomLevels[canvasId] = 4;
+
+            canvas.style.transform = `scale(${zoomLevels[canvasId]})`;
+            canvas.style.transformOrigin = 'top left';
+            
+            const levelText = Math.round(zoomLevels[canvasId] * 100) + '%';
+            const levelSpan = document.getElementById('zoom' + (canvasId === 'canvas1' ? '1' : '2') + '-level');
+            if (levelSpan) {
+                levelSpan.textContent = levelText;
+            }
+        }
+
+        function resetZoom(canvasId) {
+            zoomLevels[canvasId] = 1;
+            const canvas = document.getElementById(canvasId);
+            if (canvas) {
+                canvas.style.transform = 'scale(1)';
+                canvas.style.transformOrigin = 'top left';
+            }
+            
+            const levelSpan = document.getElementById('zoom' + (canvasId === 'canvas1' ? '1' : '2') + '-level');
+            if (levelSpan) {
+                levelSpan.textContent = '100%';
+            }
+        }
+
+        // 마우스 휠로 줌 컨트롤
+        setTimeout(() => {
+            document.addEventListener('wheel', (e) => {
+                const canvas1Container = document.getElementById('canvas1-container');
+                const canvas2Container = document.getElementById('canvas2-container');
+                
+                if (!canvas1Container || !canvas2Container) return;
+
+                const isOnCanvas1 = canvas1Container.contains(e.target);
+                const isOnCanvas2 = canvas2Container.contains(e.target);
+
+                if (isOnCanvas1 || isOnCanvas2) {
+                    e.preventDefault();
+                    const canvasId = isOnCanvas1 ? 'canvas1' : 'canvas2';
+                    const zoomAmount = e.deltaY > 0 ? -0.1 : 0.1;
+                    zoomCanvas(canvasId, zoomAmount);
+                }
+            }, { passive: false });
+        }, 100);
+
+        function switchTab(tabName) {
+            console.log('탭 전환:', tabName);
+            
+            // 모든 탭 비활성화
+            const allTabs = document.querySelectorAll('.tab-content');
+            allTabs.forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.display = 'none';
+            });
+            
+            // 모든 버튼 비활성화
+            const allBtns = document.querySelectorAll('.tab-btn');
+            allBtns.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 선택된 탭 활성화
+            const selectedTab = document.getElementById(tabName + '-tab');
+            const selectedBtn = document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]');
+            
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+                selectedTab.style.display = 'block';
+            }
+            
+            if (selectedBtn) {
+                selectedBtn.classList.add('active');
+            }
+        }
+        
+        let txtMode = 'word';
+        let imgMode = 'word';
+        let extractedText1 = '';
+        let extractedText2 = '';
+        let pageCanvases1 = [];
+        let pageCanvases2 = [];
+        let pageWordData1 = [];
+        let pageWordData2 = [];
+
+        // 탭 전환 - 직접 실행 (스크립트 끝에 추가)
+
+        // ======== TXT 모드 ========
+        const txt1 = document.getElementById('txt1');
+        const txt2 = document.getElementById('txt2');
+        const txtFile1 = document.getElementById('txt-file1');
+        const txtFile2 = document.getElementById('txt-file2');
+
+        txtFile1.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    txt1.value = event.target.result;
+                    compareTxt();
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        txtFile2.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    txt2.value = event.target.result;
+                    compareTxt();
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        txt1.addEventListener('input', compareTxt);
+        txt2.addEventListener('input', compareTxt);
+
+        document.querySelectorAll('#txt-mode-selector .mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#txt-mode-selector .mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                txtMode = btn.dataset.mode;
+                compareTxt();
+            });
+        });
+
+        // ======== 이미지 모드 ========
+        const imgFile1 = document.getElementById('img-file1');
+        const imgFile2 = document.getElementById('img-file2');
+        const preview1 = document.getElementById('preview1');
+        const preview2 = document.getElementById('preview2');
+        const upload1 = document.getElementById('upload1');
+        const upload2 = document.getElementById('upload2');
+
+        imgFile1.addEventListener('change', (e) => handleImgSelect(e, 1));
+        imgFile2.addEventListener('change', (e) => handleImgSelect(e, 2));
+
+        function handleImgSelect(e, num) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const preview = num === 1 ? preview1 : preview2;
+            const box = num === 1 ? upload1 : upload2;
+            const deleteBtn = num === 1 ? document.getElementById('delete-img1') : document.getElementById('delete-img2');
+            const filenameEl = num === 1 ? document.getElementById('filename1') : document.getElementById('filename2');
+            
+            // 파일명 표시
+            filenameEl.textContent = '📁 ' + file.name;
+            
+            // 이미지 미리보기
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+                box.classList.add('has-file');
+                deleteBtn.style.display = 'block';
+
+                if (imgFile1.files[0] && imgFile2.files[0]) {
+                    performOCR();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.querySelectorAll('#img-mode-selector .mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#img-mode-selector .mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                imgMode = btn.dataset.mode;
+                showImgComparison();
+            });
+        });
+
+        // 유틸리티 함수
+        function levenshteinDistance(s1, s2) {
+            const len1 = s1.length;
+            const len2 = s2.length;
+            const d = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+
+            for (let i = 0; i <= len1; i++) d[i][0] = i;
+            for (let j = 0; j <= len2; j++) d[0][j] = j;
+
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+                    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+                }
+            }
+            return d[len1][len2];
+        }
+
+        function similarity(s1, s2) {
+            if (s1.length === 0 && s2.length === 0) return 1;
+            const dist = levenshteinDistance(s1, s2);
+            const maxLen = Math.max(s1.length, s2.length);
+            return maxLen === 0 ? 1 : 1 - (dist / maxLen);
+        }
+
+        function splitByMode(text, mode) {
+            switch(mode) {
+                case 'word':
+                    return text.match(/\S+/g) || [];
+                case 'sentence':
+                    return text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+                case 'char':
+                    return text.split('');
+                default:
+                    return text.match(/\S+/g) || [];
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // TXT 비교
+        function compareTxt() {
+            const t1 = txt1.value;
+            const t2 = txt2.value;
+
+            if (!t1 && !t2) {
+                hideTxtResults();
+                return;
+            }
+
+            // 글자 단위로 비교 (공백, 특수문자 포함)
+            const items1 = [...t1];
+            const items2 = [...t2];
+
+            const matchMap = new Map();
+            const removed = [];
+            const added = [];
+
+            for (let i = 0; i < items1.length; i++) {
+                let bestIdx = -1;
+                let bestSim = 0.99;  // 글자는 같아야만 매칭
+                
+                for (let j = 0; j < items2.length; j++) {
+                    if (!matchMap.has(j)) {
+                        const sim = similarity(items1[i], items2[j]);
+                        if (sim > bestSim) {
+                            bestSim = sim;
+                            bestIdx = j;
+                        }
+                    }
+                }
+                
+                if (bestIdx !== -1) {
+                    matchMap.set(bestIdx, i);
+                } else {
+                    removed.push(i);
+                }
+            }
+
+            for (let i = 0; i < items2.length; i++) {
+                if (!matchMap.has(i)) {
+                    added.push(i);
+                }
+            }
+
+            // 색상 표시된 분석 생성
+            const diff1HTML = items1.map((item, i) => {
+                if (removed.includes(i)) {
+                    return `<span class="diff-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                } else {
+                    return `<span class="same-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                }
+            }).join('');
+
+            const diff2HTML = items2.map((item, i) => {
+                if (added.includes(i)) {
+                    return `<span class="added-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                } else {
+                    return `<span class="same-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                }
+            }).join('');
+
+            const textSim = similarity(t1, t2);
+            const isSame = textSim > 0.98;
+
+            document.getElementById('txt-result-box').className = isSame ? 'result-box show' : 'result-box show different';
+            document.getElementById('txt-result-box').innerHTML = `
+                <div class="result-title">${isSame ? '✓ 텍스트가 동일합니다' : '✗ 텍스트가 다릅니다'}</div>
+                <div class="result-text">유사도: ${Math.round(textSim * 100)}%</div>
+            `;
+
+            document.getElementById('txt-diff1').innerHTML = diff1HTML || '<div class="empty-state">(텍스트 없음)</div>';
+            document.getElementById('txt-diff2').innerHTML = diff2HTML || '<div class="empty-state">(텍스트 없음)</div>';
+
+            document.getElementById('txt-similarity').textContent = Math.round(textSim * 100) + '%';
+            document.getElementById('txt-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
+            document.getElementById('txt-different').textContent = removed.length + added.length;
+
+            document.getElementById('txt-result-box').classList.add('show');
+            document.getElementById('txt-stats').classList.add('show');
+            document.getElementById('txt-compare').classList.add('show');
+            document.getElementById('txt-buttons').classList.add('show');
+            document.getElementById('txt-mode-selector').classList.add('show');
+            document.getElementById('txt-legend').style.display = 'block';
+
+            // 차이나는 문구 상세 표시
+            showTxtDifferencesDetail(items1, items2, removed, added);
+        }
+
+        function showTxtDifferencesDetail(items1, items2, removed, added) {
+            const diffDetailDiv = document.getElementById('txt-differences-detail');
+            const diffListDiv = document.getElementById('txt-diff-list');
+            
+            if (removed.length === 0 && added.length === 0) {
+                diffDetailDiv.style.display = 'none';
+                return;
+            }
+
+            let html = '';
+
+            // 삭제된 항목 (텍스트 1에만 있음)
+            if (removed.length > 0) {
+                html += '<div style="margin-bottom: 1.5rem;">';
+                html += '<div style="font-weight: 600; color: #ef4444; margin-bottom: 0.75rem;">❌ 삭제됨 (텍스트 1에만 있음)</div>';
+                
+                // 연속된 차이를 그룹화
+                let groups = [];
+                let currentGroup = [];
+                let lastIdx = -2;
+                
+                removed.forEach(idx => {
+                    if (idx === lastIdx + 1 || currentGroup.length === 0) {
+                        currentGroup.push(idx);
+                    } else {
+                        groups.push(currentGroup);
+                        currentGroup = [idx];
+                    }
+                    lastIdx = idx;
+                });
+                if (currentGroup.length > 0) groups.push(currentGroup);
+                
+                groups.forEach(group => {
+                    const text = group.map(idx => items1[idx]).join('');
+                    const displayText = text.includes(' ') ? text.replace(/ /g, '·') : text;
+                    html += `<div style="padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; margin-bottom: 0.5rem; border-radius: 4px; word-break: break-all; font-family: monospace;">
+                        <span style="color: #666; font-size: 0.9rem;">• </span><span style="color: #ef4444; font-weight: 500;">"${escapeHtml(displayText)}"</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            // 추가된 항목 (텍스트 2에만 있음)
+            if (added.length > 0) {
+                html += '<div>';
+                html += '<div style="font-weight: 600; color: #10b981; margin-bottom: 0.75rem;">✓ 추가됨 (텍스트 2에만 있음)</div>';
+                
+                // 연속된 차이를 그룹화
+                let groups = [];
+                let currentGroup = [];
+                let lastIdx = -2;
+                
+                added.forEach(idx => {
+                    if (idx === lastIdx + 1 || currentGroup.length === 0) {
+                        currentGroup.push(idx);
+                    } else {
+                        groups.push(currentGroup);
+                        currentGroup = [idx];
+                    }
+                    lastIdx = idx;
+                });
+                if (currentGroup.length > 0) groups.push(currentGroup);
+                
+                groups.forEach(group => {
+                    const text = group.map(idx => items2[idx]).join('');
+                    const displayText = text.includes(' ') ? text.replace(/ /g, '·') : text;
+                    html += `<div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; margin-bottom: 0.5rem; border-radius: 4px; word-break: break-all; font-family: monospace;">
+                        <span style="color: #666; font-size: 0.9rem;">• </span><span style="color: #10b981; font-weight: 500;">"${escapeHtml(displayText)}"</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            diffListDiv.innerHTML = html;
+            diffDetailDiv.style.display = 'block';
+        }
+
+        function hideTxtResults() {
+            document.getElementById('txt-result-box').classList.remove('show');
+            document.getElementById('txt-stats').classList.remove('show');
+            document.getElementById('txt-compare').classList.remove('show');
+            document.getElementById('txt-differences-detail').style.display = 'none';
+            document.getElementById('txt-buttons').classList.remove('show');
+            document.getElementById('txt-legend').style.display = 'none';
+        }
+
+        // 이미지 OCR
+        async function performOCR() {
+            showStatus('processing', '파일 처리 중...');
+            document.getElementById('progress-section').style.display = 'block';
+
+            try {
+                const file1 = imgFile1.files[0];
+                const file2 = imgFile2.files[0];
+                
+                if (!file1 || !file2) {
+                    showStatus('error', '두 파일을 모두 선택해주세요');
+                    document.getElementById('progress-section').style.display = 'none';
+                    return;
+                }
+
+                extractedText1 = await processFile(file1, 1);
+                extractedText2 = await processFile(file2, 2);
+                document.getElementById('progress-section').style.display = 'none';
+                showImgComparison();
+                showStatus('success', '✓ 파일 처리 완료!');
+            } catch (error) {
+                console.error('에러:', error);
+                showStatus('error', '❌ ' + error.message);
+                document.getElementById('progress-section').style.display = 'none';
+            }
+        }
+
+        async function processFile(file, fileNum) {
+            // 이미지만 처리
+            return await recognizeImage(file, fileNum);
+        }
+
+
+        async function recognizeImage(file, fileNum) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const imgElement = new Image();
+                            imgElement.onload = async () => {
+                                // Canvas에 이미지 그리기
+                                const canvas = document.createElement('canvas');
+                                canvas.width = imgElement.width;
+                                canvas.height = imgElement.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(imgElement, 0, 0);
+                                
+                                // Canvas 저장
+                                const canvases = fileNum === 1 ? pageCanvases1 : pageCanvases2;
+                                canvases.push(canvas);
+
+                                // OCR 처리 - 상세 정보 포함
+                                const result = await Tesseract.recognize(e.target.result, 'kor+eng', {
+                                    logger: (progress) => {
+                                        const percent = Math.round(progress.progress * 100);
+                                        if (fileNum === 1) {
+                                            document.getElementById('progress1').textContent = percent + '%';
+                                            document.getElementById('progress-fill1').style.width = percent + '%';
+                                        } else {
+                                            document.getElementById('progress2').textContent = percent + '%';
+                                            document.getElementById('progress-fill2').style.width = percent + '%';
+                                        }
+                                    }
+                                });
+
+                                const { data } = result;
+                                const text = data.text;
+
+                                // Word-level 정보 추출
+                                const words = [];
+                                if (data.words) {
+                                    data.words.forEach(word => {
+                                        words.push({
+                                            text: word.text,
+                                            confidence: word.confidence,
+                                            bbox: [
+                                                word.bbox.x0,
+                                                word.bbox.y0,
+                                                word.bbox.x1,
+                                                word.bbox.y1
+                                            ]
+                                        });
+                                    });
+                                }
+
+                                const wordDataList = fileNum === 1 ? pageWordData1 : pageWordData2;
+                                wordDataList.push({
+                                    text: text,
+                                    words: words
+                                });
+
+                                resolve(text.trim());
+                            };
+                            imgElement.onerror = () => {
+                                reject(new Error('이미지 로드 실패'));
+                            };
+                            imgElement.src = e.target.result;
+                        } catch (error) {
+                            reject(new Error('이미지 처리 실패: ' + error.message));
+                        }
+                    };
+                    reader.onerror = () => {
+                        reject(new Error('파일 읽기 실패'));
+                    };
+                    reader.readAsDataURL(file);
+                } catch (error) {
+                    reject(new Error('이미지 인식 실패: ' + error.message));
+                }
+            });
+        }
+
+        function filterWordsWithConfidence(words, minConfidence = 0.7) {
+            // 신뢰도가 낮은 단어 제거 + 로고/바코드 제거
+            return words.filter(word => {
+                try {
+                    if (!word || typeof word !== 'string') return false;
+                    
+                    const trimmed = word.trim();
+                    if (trimmed.length === 0) return false;
+                    
+                    // 1. 1-2글자 이하 제거 (로고 텍스트)
+                    if (trimmed.length <= 2) return false;
+                    
+                    // 2. 특수문자만 있는 경우 제거 (바코드)
+                    try {
+                        if (/^[^\w\s]+$/.test(trimmed)) return false;
+                    } catch (e) {}
+                    
+                    // 3. 대부분 특수문자인 경우 제거
+                    const specialCount = (trimmed.match(/[^\w\s]/g) || []).length;
+                    if (specialCount > 0 && (specialCount / trimmed.length) > 0.8) return false;
+                    
+                    return true;
+                } catch (e) {
+                    return true;
+                }
+            });
+        }
+
+        function normalizeText(text) {
+            try {
+                if (!text || typeof text !== 'string') return '';
+                return text
+                    .toUpperCase()
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    // 일반 특수문자 제거
+                    .replace(/[.,!?;:\-()]/g, '')
+                    // 북유럽 문자 정규화 (ø→O, é→E, à→A 등)
+                    .replace(/[øØ]/g, 'O')
+                    .replace(/[éèêë]/g, 'E')
+                    .replace(/[àâ]/g, 'A')
+                    .replace(/[ìîï]/g, 'I')
+                    .replace(/[òôö]/g, 'O')
+                    .replace(/[ùûü]/g, 'U')
+                    .replace(/[ç]/g, 'C')
+                    .replace(/[ñ]/g, 'N')
+                    .replace(/[ß]/g, 'SS')
+                    // 기타 악센트 제거
+                    .replace(/[^\w\s]/g, '');
+            } catch (e) {
+                console.warn('정규화 오류:', e);
+                return text || '';
+            }
+        }
+
+        function normalizedSimilarity(s1, s2) {
+            try {
+                const norm1 = normalizeText(s1);
+                const norm2 = normalizeText(s2);
+                if (!norm1 || !norm2) return 0;
+                return similarity(norm1, norm2);
+            } catch (e) {
+                console.warn('유사도 계산 오류:', e);
+                return similarity(s1, s2);
+            }
+        }
+
+        function showImgComparison() {
+            const t1 = extractedText1;
+            const t2 = extractedText2;
+
+            // Word 객체 배열에서 confidence가 높은 단어만 필터링 (0.6 이상)
+            const HIGH_CONFIDENCE = 0.6;
+            
+            let words1 = [];
+            let words2 = [];
+            
+            if (pageWordData1.length > 0 && pageWordData1[0].words) {
+                words1 = pageWordData1[0].words
+                    .filter(w => w.confidence >= HIGH_CONFIDENCE)
+                    .map(w => w.text);
+            }
+            
+            if (pageWordData2.length > 0 && pageWordData2[0].words) {
+                words2 = pageWordData2[0].words
+                    .filter(w => w.confidence >= HIGH_CONFIDENCE)
+                    .map(w => w.text);
+            }
+            
+            // 신뢰도 기반 텍스트 재구성
+            const t1_highconf = words1.join(' ');
+            const t2_highconf = words2.join(' ');
+            
+            console.log('신뢰도 필터링: 원본', t1.split(' ').length, '→ 필터됨', words1.length);
+            console.log('신뢰도 필터링: 원본', t2.split(' ').length, '→ 필터됨', words2.length);
+
+            // 단어 단위로 비교
+            let items1 = words1;
+            let items2 = words2;
+            
+            // 로고/바코드 같은 의미 없는 텍스트 제거
+            items1 = filterWordsWithConfidence(items1);
+            items2 = filterWordsWithConfidence(items2);
+            
+            console.log('로고 필터링 후:', items1.length, items2.length);
+
+            // Canvas 표시
+            if (pageCanvases1.length > 0) {
+                const originalCanvas1 = pageCanvases1[0];
+                const highlightCanvas1 = document.createElement('canvas');
+                highlightCanvas1.width = originalCanvas1.width;
+                highlightCanvas1.height = originalCanvas1.height;
+                const ctx1 = highlightCanvas1.getContext('2d');
+                ctx1.drawImage(originalCanvas1, 0, 0);
+
+                const canvas1 = document.getElementById('canvas1');
+                canvas1.width = highlightCanvas1.width;
+                canvas1.height = highlightCanvas1.height;
+                const ctxDisplay1 = canvas1.getContext('2d');
+                ctxDisplay1.drawImage(highlightCanvas1, 0, 0);
+                canvas1.style.display = 'block';
+                document.getElementById('no-preview1').style.display = 'none';
+            }
+
+            if (pageCanvases2.length > 0) {
+                const originalCanvas2 = pageCanvases2[0];
+                const highlightCanvas2 = document.createElement('canvas');
+                highlightCanvas2.width = originalCanvas2.width;
+                highlightCanvas2.height = originalCanvas2.height;
+                const ctx2 = highlightCanvas2.getContext('2d');
+                ctx2.drawImage(originalCanvas2, 0, 0);
+
+                const canvas2 = document.getElementById('canvas2');
+                canvas2.width = highlightCanvas2.width;
+                canvas2.height = highlightCanvas2.height;
+                const ctxDisplay2 = canvas2.getContext('2d');
+                ctxDisplay2.drawImage(highlightCanvas2, 0, 0);
+                canvas2.style.display = 'block';
+                document.getElementById('no-preview2').style.display = 'none';
+            }
+
+            // 매칭 알고리즘
+            const matchMap = new Map();
+            const removed = [];
+            const added = [];
+
+            for (let i = 0; i < items1.length; i++) {
+                let bestIdx = -1;
+                let bestSim = 0.92;  // 임계값 상향: 92% 이상만 매칭
+                
+                for (let j = 0; j < items2.length; j++) {
+                    if (!matchMap.has(j)) {
+                        const sim = normalizedSimilarity(items1[i], items2[j]);
+                        if (sim > bestSim) {
+                            bestSim = sim;
+                            bestIdx = j;
+                        }
+                    }
+                }
+                
+                if (bestIdx !== -1) {
+                    matchMap.set(bestIdx, i);
+                    console.log('매칭:', items1[i], '=', items2[bestIdx], '유사도:', bestSim);
+                } else {
+                    removed.push({ idx: i, text: items1[i] });
+                    console.log('제거됨(파일1):', items1[i]);
+                }
+            }
+
+            for (let i = 0; i < items2.length; i++) {
+                if (!matchMap.has(i)) {
+                    added.push({ idx: i, text: items2[i] });
+                    console.log('추가됨(파일2):', items2[i]);
+                }
+            }
+
+            // 차이나는 텍스트만 하이라이트
+            if (pageCanvases1.length > 0 && pageWordData1.length > 0 && removed.length > 0) {
+                highlightDifferenceWords(document.getElementById('canvas1'), pageWordData1[0].words, removed, 'yellow');
+            }
+
+            if (pageCanvases2.length > 0 && pageWordData2.length > 0 && added.length > 0) {
+                highlightDifferenceWords(document.getElementById('canvas2'), pageWordData2[0].words, added, 'lime');
+            }
+
+            // 차이 목록 생성 (HTML 형식으로 한줄씩)
+            let diff1HTML = '<div style="line-height: 2;">';
+            removed.forEach((item, idx) => {
+                diff1HTML += `<div style="padding: 6px 8px; border-bottom: 1px solid #ddd;">
+                    <span style="color: #999; font-weight: 600; min-width: 20px; display: inline-block;">${idx + 1}.</span>
+                    <span style="margin-left: 8px; word-break: break-word;">${escapeHtml(item.text)}</span>
+                </div>`;
+            });
+            diff1HTML += '</div>';
+            
+            let diff2HTML = '<div style="line-height: 2;">';
+            added.forEach((item, idx) => {
+                diff2HTML += `<div style="padding: 6px 8px; border-bottom: 1px solid #ddd;">
+                    <span style="color: #999; font-weight: 600; min-width: 20px; display: inline-block;">${idx + 1}.</span>
+                    <span style="margin-left: 8px; word-break: break-word;">${escapeHtml(item.text)}</span>
+                </div>`;
+            });
+            diff2HTML += '</div>';
+
+            document.getElementById('img-diff-1-only').innerHTML = removed.length > 0 ? diff1HTML : '<div style="color: #999; padding: 20px; text-align: center; font-size: 0.9rem;">(차이 없음)</div>';
+            document.getElementById('img-diff-2-only').innerHTML = added.length > 0 ? diff2HTML : '<div style="color: #999; padding: 20px; text-align: center; font-size: 0.9rem;">(차이 없음)</div>';
+
+            // 유사도 계산 (정규화된 비교 - 신뢰도 필터링된 텍스트)
+            const textSim = normalizedSimilarity(t1_highconf, t2_highconf);
+            const isSame = textSim > 0.99;  // 99% 이상만 동일
+
+            document.getElementById('img-result-box').className = isSame ? 'result-box show' : 'result-box show different';
+            document.getElementById('img-result-box').innerHTML = `
+                <div class="result-title">${isSame ? '✓ 파일이 동일합니다' : '✗ 파일이 다릅니다'}</div>
+                <div class="result-text">유사도: ${Math.round(textSim * 100)}% | 차이 항목: ${removed.length + added.length}개</div>
+            `;
+
+            document.getElementById('img-similarity').textContent = Math.round(textSim * 100) + '%';
+            document.getElementById('img-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
+            document.getElementById('img-different').textContent = removed.length + added.length;
+
+            // 모든 섹션 표시
+            document.getElementById('img-result-box').classList.add('show');
+            document.getElementById('img-stats').classList.add('show');
+            document.getElementById('img-compare').classList.add('show');
+            document.getElementById('img-diff-details').style.display = 'block';
+            document.getElementById('img-buttons').classList.add('show');
+            document.getElementById('img-mode-selector').classList.add('show');
+            document.getElementById('img-legend').style.display = 'block';
+        }
+
+        function highlightDifferenceWords(canvas, words, diffItems, color) {
+            if (!canvas || !words || words.length === 0 || diffItems.length === 0) return;
+
+            const colorStyle = color === 'yellow' 
+                ? { fill: 'rgba(255, 215, 0, 0.4)', stroke: '#FFD700' }
+                : { fill: 'rgba(0, 255, 0, 0.4)', stroke: '#00FF00' };
+
+            const ctx = canvas.getContext('2d');
+            
+            // 차이나는 각 단어에 대해 Canvas에서 찾아서 하이라이트
+            diffItems.forEach(diffItem => {
+                const diffTextNorm = normalizeText(diffItem.text);
+                
+                // words 배열에서 해당 텍스트를 찾기
+                words.forEach(word => {
+                    if (word && word.text && word.bbox) {
+                        const wordNorm = normalizeText(word.text);
+                        // 정규화된 텍스트가 일치하면 하이라이트
+                        if (wordNorm === diffTextNorm) {
+                            const [x0, y0, x1, y1] = word.bbox;
+                            
+                            // 하이라이트 박스 그리기
+                            ctx.fillStyle = colorStyle.fill;
+                            ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+                            
+                            ctx.strokeStyle = colorStyle.stroke;
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+                        }
+                    }
+                });
+            });
+        }
+
+        function drawDifferencesOnCanvas(canvases, items, diffIndices, color) {
+            if (canvases.length === 0 || diffIndices.length === 0) return;
+
+            const canvas = canvases[0];
+            const ctx = canvas.getContext('2d');
+            
+            // 색상 선택 - 검은색 배경에서도 눈에 띄는 색상 사용
+            let boxColor, textColor, fillOpacity;
+            if (color === 'red') {
+                boxColor = '#FFD700';      // 황금색 (더 눈에 띔)
+                textColor = '#FFD700';
+                fillOpacity = 'rgba(255, 215, 0, 0.3)';  // 반투명 황금색
+            } else {
+                boxColor = '#00FF00';      // 라임색 (더 눈에 띔)
+                textColor = '#00FF00';
+                fillOpacity = 'rgba(0, 255, 0, 0.3)';    // 반투명 라임색
+            }
+            
+            ctx.strokeStyle = boxColor;
+            ctx.fillStyle = fillOpacity;
+            ctx.lineWidth = 3;  // 더 두꺼운 선
+
+            // 텍스트 레이블
+            let yPos = 30;
+            for (let idx of diffIndices) {
+                const text = items[idx];
+                const boxHeight = 20;
+                
+                ctx.fillRect(10, yPos, canvas.width - 20, boxHeight);
+                ctx.strokeRect(10, yPos, canvas.width - 20, boxHeight);
+                
+                // 텍스트 레이블 (더 진하고 큼)
+                ctx.fillStyle = textColor;
+                ctx.font = 'bold 14px Arial';
+                ctx.strokeStyle = '#000000';  // 검은색 테두리로 텍스트 강조
+                ctx.lineWidth = 2;
+                ctx.strokeText(text.substring(0, 50), 15, yPos + 15);
+                ctx.fillText(text.substring(0, 50), 15, yPos + 15);
+                
+                yPos += 25;
+            }
+        }
+
+        // 상태 메시지
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.className = `status-message show status-${type}`;
+            if (type === 'processing') {
+                statusEl.innerHTML = `<span class="spinner"></span>${message}`;
+            } else {
+                statusEl.innerHTML = message;
+            }
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // 초기화 & 복사
+        function resetTxt() {
+            txt1.value = '';
+            txt2.value = '';
+            txtFile1.value = '';
+            txtFile2.value = '';
+            hideTxtResults();
+        }
+
+        function clearTxt1() {
+            txt1.value = '';
+            txtFile1.value = '';
+            compareTxt();
+        }
+
+        function clearTxt2() {
+            txt2.value = '';
+            txtFile2.value = '';
+            compareTxt();
+        }
+
+        function resetImg() {
+            imgFile1.value = '';
+            imgFile2.value = '';
+            preview1.style.display = 'none';
+            preview2.style.display = 'none';
+            upload1.classList.remove('has-file');
+            upload2.classList.remove('has-file');
+            document.getElementById('delete-img1').style.display = 'none';
+            document.getElementById('delete-img2').style.display = 'none';
+            document.getElementById('filename1').textContent = '';
+            document.getElementById('filename2').textContent = '';
+            document.getElementById('canvas1').style.display = 'none';
+            document.getElementById('canvas2').style.display = 'none';
+            document.getElementById('no-preview1').style.display = 'block';
+            document.getElementById('no-preview2').style.display = 'block';
+            document.getElementById('img-result-box').classList.remove('show');
+            document.getElementById('img-stats').classList.remove('show');
+            document.getElementById('img-compare').classList.remove('show');
+            document.getElementById('img-diff-details').style.display = 'none';
+            document.getElementById('img-buttons').classList.remove('show');
+            document.getElementById('img-legend').style.display = 'none';
+            extractedText1 = '';
+            extractedText2 = '';
+            pageCanvases1 = [];
+            pageCanvases2 = [];
+            pageWordData1 = [];
+            pageWordData2 = [];
+        }
+
+        function clearImg1() {
+            imgFile1.value = '';
+            preview1.style.display = 'none';
+            upload1.classList.remove('has-file');
+            document.getElementById('delete-img1').style.display = 'none';
+            document.getElementById('filename1').textContent = '';
+            document.getElementById('canvas1').style.display = 'none';
+            document.getElementById('no-preview1').style.display = 'block';
+            extractedText1 = '';
+            pageCanvases1 = [];
+            pageWordData1 = [];
+            if (!extractedText2) {
+                document.getElementById('img-result-box').classList.remove('show');
+                document.getElementById('img-stats').classList.remove('show');
+                document.getElementById('img-compare').classList.remove('show');
+                document.getElementById('img-diff-details').style.display = 'none';
+                document.getElementById('img-buttons').classList.remove('show');
+                document.getElementById('img-legend').style.display = 'none';
+            }
+        }
+
+        function clearImg2() {
+            imgFile2.value = '';
+            preview2.style.display = 'none';
+            upload2.classList.remove('has-file');
+            document.getElementById('delete-img2').style.display = 'none';
+            document.getElementById('filename2').textContent = '';
+            document.getElementById('canvas2').style.display = 'none';
+            document.getElementById('no-preview2').style.display = 'block';
+            extractedText2 = '';
+            pageCanvases2 = [];
+            pageWordData2 = [];
+            if (!extractedText1) {
+                document.getElementById('img-result-box').classList.remove('show');
+                document.getElementById('img-stats').classList.remove('show');
+                document.getElementById('img-compare').classList.remove('show');
+                document.getElementById('img-diff-details').style.display = 'none';
+                document.getElementById('img-buttons').classList.remove('show');
+                document.getElementById('img-legend').style.display = 'none';
+            }
+        }
+
+        function copyTxt() {
+            const result = `=== 텍스트 비교 결과 ===\n\n[텍스트 1]\n${txt1.value}\n\n[텍스트 2]\n${txt2.value}`;
+            showCopyPreview(result);
+        }
+
+        function copyImg() {
+            const result = `=== 파일 비교 결과 ===\n\n[파일 1]\n${extractedText1}\n\n[파일 2]\n${extractedText2}`;
+            showCopyPreview(result);
+        }
+
+        let pendingCopyText = '';
+
+        function showCopyPreview(text) {
+            pendingCopyText = text;
+            document.getElementById('copy-preview-text').textContent = text;
+            document.getElementById('copy-preview-overlay').classList.add('show');
+            document.getElementById('copy-preview-modal').classList.add('show');
+        }
+
+        function closeCopyPreview() {
+            document.getElementById('copy-preview-overlay').classList.remove('show');
+            document.getElementById('copy-preview-modal').classList.remove('show');
+            pendingCopyText = '';
+        }
+
+        function confirmCopy() {
+            navigator.clipboard.writeText(pendingCopyText).then(() => {
+                closeCopyPreview();
+                showStatus('success', '✓ 복사되었습니다');
+            });
+        }
+
+        // 모달 외부 클릭 시 닫기
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('copy-preview-overlay').addEventListener('click', closeCopyPreview);
+        });
+    </script>
+
+    <!-- 결과 복사 미리보기 모달 -->
+    <div id="copy-preview-overlay" class="copy-preview-overlay"></div>
+    <div id="copy-preview-modal" class="copy-preview-modal">
+        <div class="copy-preview-title">📋 복사될 내용 미리보기</div>
+        <div class="copy-preview-content" id="copy-preview-text"></div>
+        <div class="copy-preview-footer">
+            <button class="btn btn-secondary" onclick="closeCopyPreview()">닫기</button>
+            <button class="btn btn-primary" onclick="confirmCopy()">복사</button>
+        </div>
+    </div>
