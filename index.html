@@ -1322,18 +1322,29 @@
             }).join('');
 
             const textSim = similarity(t1, t2);
-            const isSame = textSim > 0.98;
+            
+            // 차이가 있으면 유사도 감소
+            let adjustedSim = textSim;
+            const totalDifferences = removed.length + added.length;
+            if (totalDifferences > 0) {
+                // 차이 개수만큼 유사도를 감소 (최소 0%)
+                const maxLength = Math.max(t1.length, t2.length);
+                const differencePenalty = totalDifferences / maxLength;
+                adjustedSim = Math.max(0, textSim - differencePenalty);
+            }
+            
+            const isSame = adjustedSim > 0.99;
 
             document.getElementById('txt-result-box').className = isSame ? 'result-box show' : 'result-box show different';
             document.getElementById('txt-result-box').innerHTML = `
                 <div class="result-title">${isSame ? '✓ 텍스트가 동일합니다' : '✗ 텍스트가 다릅니다'}</div>
-                <div class="result-text">유사도: ${Math.round(textSim * 100)}%</div>
+                <div class="result-text">유사도: ${Math.round(adjustedSim * 100)}%</div>
             `;
 
             document.getElementById('txt-diff1').innerHTML = diff1HTML || '<div class="empty-state">(텍스트 없음)</div>';
             document.getElementById('txt-diff2').innerHTML = diff2HTML || '<div class="empty-state">(텍스트 없음)</div>';
 
-            document.getElementById('txt-similarity').textContent = Math.round(textSim * 100) + '%';
+            document.getElementById('txt-similarity').textContent = Math.round(adjustedSim * 100) + '%';
             document.getElementById('txt-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
             document.getElementById('txt-different').textContent = removed.length + added.length;
 
