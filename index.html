@@ -325,6 +325,7 @@
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.2rem;
             margin-bottom: 2rem;
+            display: none;
         }
 
         .stats-section.show {
@@ -1268,36 +1269,36 @@
                 return;
             }
 
-            // 글자 단위로 정확하게 비교 (공백, 특수문자 모두 포함)
-            // 중요: 순서를 고려한 위치 기반 비교
-            const items1 = [...t1];
-            const items2 = [...t2];
+            const items1 = splitByMode(t1, txtMode);
+            const items2 = splitByMode(t2, txtMode);
 
+            const matchMap = new Map();
             const removed = [];
             const added = [];
-            const matched = [];
 
-            // 1단계: 같은 위치의 글자 비교 (순서 고려)
-            const minLength = Math.min(items1.length, items2.length);
-            for (let i = 0; i < minLength; i++) {
-                if (items1[i] === items2[i]) {
-                    matched.push(i);
+            for (let i = 0; i < items1.length; i++) {
+                let bestIdx = -1;
+                let bestSim = 0.99;  // 0.8 → 0.99 (거의 완벽하게 같은 것만 매칭)
+                
+                for (let j = 0; j < items2.length; j++) {
+                    if (!matchMap.has(j)) {
+                        const sim = similarity(items1[i], items2[j]);
+                        if (sim > bestSim) {
+                            bestSim = sim;
+                            bestIdx = j;
+                        }
+                    }
+                }
+                
+                if (bestIdx !== -1) {
+                    matchMap.set(bestIdx, i);
                 } else {
-                    // 위치가 다르면 둘 다 차이
                     removed.push(i);
-                    added.push(i);
                 }
             }
 
-            // 2단계: 길이 차이로 인한 추가/제거 글자 처리
-            if (items1.length > items2.length) {
-                // items1이 더 길면 끝부분이 삭제됨
-                for (let i = minLength; i < items1.length; i++) {
-                    removed.push(i);
-                }
-            } else if (items2.length > items1.length) {
-                // items2가 더 길면 끝부분이 추가됨
-                for (let i = minLength; i < items2.length; i++) {
+            for (let i = 0; i < items2.length; i++) {
+                if (!matchMap.has(i)) {
                     added.push(i);
                 }
             }
@@ -1305,54 +1306,44 @@
             // 색상 표시된 분석 생성
             const diff1HTML = items1.map((item, i) => {
                 if (removed.includes(i)) {
-                    return `<span class="diff-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                    return `<span class="diff-word">${escapeHtml(item)}</span>`;
                 } else {
-                    return `<span class="same-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                    return `<span class="same-word">${escapeHtml(item)}</span>`;
                 }
-            }).join('');
+            }).join(' ');
 
             const diff2HTML = items2.map((item, i) => {
                 if (added.includes(i)) {
-                    return `<span class="added-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                    return `<span class="added-word">${escapeHtml(item)}</span>`;
                 } else {
-                    return `<span class="same-word">${escapeHtml(item === ' ' ? '·' : item)}</span>`;
+                    return `<span class="same-word">${escapeHtml(item)}</span>`;
                 }
-            }).join('');
+            }).join(' ');
 
-            // 최종 유사도 계산 - 중요: 차이가 1개라도 있으면 절대 100%가 아님
-            const totalDifferences = removed.length + added.length;
-            const maxLength = Math.max(items1.length, items2.length);
-            const matchedCount = maxLength - totalDifferences;
-            const adjustedSim = maxLength > 0 ? matchedCount / maxLength : 1;
+            const textSim = similarity(t1, t2);
             
-            let finalSimilarity;
-            if (totalDifferences === 0) {
-                // 완벽하게 같을 때만 100%
-                finalSimilarity = 1.0;
-            } else {
-                // 차이가 1개라도 있으면 최대 99% (절대로 100% 아님)
-                finalSimilarity = Math.min(adjustedSim, 0.99);
-                // 혹시 99%가 넘어가지 않도록 추가 확인
-                if (finalSimilarity >= 0.99) {
-                    finalSimilarity = 0.99;
-                }
+            // 차이가 있으면 절대 100% 아님
+            const totalDifferences = removed.length + added.length;
+            let finalSim = textSim;
+            if (totalDifferences > 0) {
+                // 차이가 1개라도 있으면 최대 99%
+                finalSim = Math.min(textSim, 0.99);
             }
-
+            
             const isSame = totalDifferences === 0;  // 완벽하게 같을 때만 true
 
             document.getElementById('txt-result-box').className = isSame ? 'result-box show' : 'result-box show different';
             document.getElementById('txt-result-box').innerHTML = `
                 <div class="result-title">${isSame ? '✓ 텍스트가 동일합니다' : '✗ 텍스트가 다릅니다'}</div>
-                <div class="result-text">유사도: ${Math.round(finalSimilarity * 100)}%</div>
+                <div class="result-text">유사도: ${Math.round(finalSim * 100)}%</div>
             `;
 
             document.getElementById('txt-diff1').innerHTML = diff1HTML || '<div class="empty-state">(텍스트 없음)</div>';
             document.getElementById('txt-diff2').innerHTML = diff2HTML || '<div class="empty-state">(텍스트 없음)</div>';
 
-            // 유사도 표시 - 차이가 있으면 절대 100%가 아님
-            document.getElementById('txt-similarity').textContent = Math.round(finalSimilarity * 100) + '%';
-            document.getElementById('txt-matched').textContent = matchedCount;
-            document.getElementById('txt-different').textContent = totalDifferences;
+            document.getElementById('txt-similarity').textContent = Math.round(finalSim * 100) + '%';
+            document.getElementById('txt-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
+            document.getElementById('txt-different').textContent = removed.length + added.length;
 
             document.getElementById('txt-result-box').classList.add('show');
             document.getElementById('txt-stats').classList.add('show');
@@ -1360,11 +1351,12 @@
             document.getElementById('txt-buttons').classList.add('show');
             document.getElementById('txt-mode-selector').classList.add('show');
             document.getElementById('txt-legend').style.display = 'block';
-
+            
             // 차이나는 문구 상세 표시
             showTxtDifferencesDetail(items1, items2, removed, added);
         }
 
+        
         function showTxtDifferencesDetail(items1, items2, removed, added) {
             const diffDetailDiv = document.getElementById('txt-differences-detail');
             const diffListDiv = document.getElementById('txt-diff-list');
@@ -1380,28 +1372,9 @@
             if (removed.length > 0) {
                 html += '<div style="margin-bottom: 1.5rem;">';
                 html += '<div style="font-weight: 600; color: #ef4444; margin-bottom: 0.75rem;">❌ 삭제됨 (텍스트 1에만 있음)</div>';
-                
-                // 연속된 차이를 그룹화
-                let groups = [];
-                let currentGroup = [];
-                let lastIdx = -2;
-                
-                removed.forEach(idx => {
-                    if (idx === lastIdx + 1 || currentGroup.length === 0) {
-                        currentGroup.push(idx);
-                    } else {
-                        groups.push(currentGroup);
-                        currentGroup = [idx];
-                    }
-                    lastIdx = idx;
-                });
-                if (currentGroup.length > 0) groups.push(currentGroup);
-                
-                groups.forEach(group => {
-                    const text = group.map(idx => items1[idx]).join('');
-                    const displayText = text.includes(' ') ? text.replace(/ /g, '·') : text;
-                    html += `<div style="padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; margin-bottom: 0.5rem; border-radius: 4px; word-break: break-all; font-family: monospace;">
-                        <span style="color: #666; font-size: 0.9rem;">• </span><span style="color: #ef4444; font-weight: 500;">"${escapeHtml(displayText)}"</span>
+                removed.forEach((idx) => {
+                    html += `<div style="padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; margin-bottom: 0.5rem; border-radius: 4px;">
+                        <span style="color: #666; font-size: 0.9rem;">• </span>${escapeHtml(items1[idx])}
                     </div>`;
                 });
                 html += '</div>';
@@ -1411,28 +1384,9 @@
             if (added.length > 0) {
                 html += '<div>';
                 html += '<div style="font-weight: 600; color: #10b981; margin-bottom: 0.75rem;">✓ 추가됨 (텍스트 2에만 있음)</div>';
-                
-                // 연속된 차이를 그룹화
-                let groups = [];
-                let currentGroup = [];
-                let lastIdx = -2;
-                
-                added.forEach(idx => {
-                    if (idx === lastIdx + 1 || currentGroup.length === 0) {
-                        currentGroup.push(idx);
-                    } else {
-                        groups.push(currentGroup);
-                        currentGroup = [idx];
-                    }
-                    lastIdx = idx;
-                });
-                if (currentGroup.length > 0) groups.push(currentGroup);
-                
-                groups.forEach(group => {
-                    const text = group.map(idx => items2[idx]).join('');
-                    const displayText = text.includes(' ') ? text.replace(/ /g, '·') : text;
-                    html += `<div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; margin-bottom: 0.5rem; border-radius: 4px; word-break: break-all; font-family: monospace;">
-                        <span style="color: #666; font-size: 0.9rem;">• </span><span style="color: #10b981; font-weight: 500;">"${escapeHtml(displayText)}"</span>
+                added.forEach((idx) => {
+                    html += `<div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; margin-bottom: 0.5rem; border-radius: 4px;">
+                        <span style="color: #666; font-size: 0.9rem;">• </span>${escapeHtml(items2[idx])}
                     </div>`;
                 });
                 html += '</div>';
@@ -1446,9 +1400,9 @@
             document.getElementById('txt-result-box').classList.remove('show');
             document.getElementById('txt-stats').classList.remove('show');
             document.getElementById('txt-compare').classList.remove('show');
-            document.getElementById('txt-differences-detail').style.display = 'none';
             document.getElementById('txt-buttons').classList.remove('show');
             document.getElementById('txt-legend').style.display = 'none';
+            document.getElementById('txt-differences-detail').style.display = 'none';
         }
 
         // 이미지 OCR
