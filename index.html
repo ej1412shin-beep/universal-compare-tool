@@ -325,7 +325,6 @@
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.2rem;
             margin-bottom: 2rem;
-            display: none;
         }
 
         .stats-section.show {
@@ -1270,38 +1269,35 @@
             }
 
             // 글자 단위로 정확하게 비교 (공백, 특수문자 모두 포함)
+            // 중요: 순서를 고려한 위치 기반 비교
             const items1 = [...t1];
             const items2 = [...t2];
 
-            const matchMap = new Map();
             const removed = [];
             const added = [];
+            const matched = [];
 
-            // 1단계: items1의 각 글자를 items2에서 찾기
-            for (let i = 0; i < items1.length; i++) {
-                let bestIdx = -1;
-                let bestSim = 0.99;  // 완전히 같은 글자만 매칭
-                
-                for (let j = 0; j < items2.length; j++) {
-                    if (!matchMap.has(j)) {
-                        const sim = similarity(items1[i], items2[j]);
-                        if (sim > bestSim) {
-                            bestSim = sim;
-                            bestIdx = j;
-                        }
-                    }
-                }
-                
-                if (bestIdx !== -1) {
-                    matchMap.set(bestIdx, i);
+            // 1단계: 같은 위치의 글자 비교 (순서 고려)
+            const minLength = Math.min(items1.length, items2.length);
+            for (let i = 0; i < minLength; i++) {
+                if (items1[i] === items2[i]) {
+                    matched.push(i);
                 } else {
+                    // 위치가 다르면 둘 다 차이
                     removed.push(i);
+                    added.push(i);
                 }
             }
 
-            // 2단계: items2에서 매칭되지 않은 글자 찾기
-            for (let i = 0; i < items2.length; i++) {
-                if (!matchMap.has(i)) {
+            // 2단계: 길이 차이로 인한 추가/제거 글자 처리
+            if (items1.length > items2.length) {
+                // items1이 더 길면 끝부분이 삭제됨
+                for (let i = minLength; i < items1.length; i++) {
+                    removed.push(i);
+                }
+            } else if (items2.length > items1.length) {
+                // items2가 더 길면 끝부분이 추가됨
+                for (let i = minLength; i < items2.length; i++) {
                     added.push(i);
                 }
             }
@@ -1325,6 +1321,9 @@
 
             // 최종 유사도 계산 - 중요: 차이가 1개라도 있으면 절대 100%가 아님
             const totalDifferences = removed.length + added.length;
+            const maxLength = Math.max(items1.length, items2.length);
+            const matchedCount = maxLength - totalDifferences;
+            const adjustedSim = maxLength > 0 ? matchedCount / maxLength : 1;
             
             let finalSimilarity;
             if (totalDifferences === 0) {
