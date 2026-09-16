@@ -1269,7 +1269,7 @@
                 return;
             }
 
-            // 글자 단위로 비교 (공백, 특수문자 포함)
+            // 글자 단위로 정확하게 비교 (공백, 특수문자 모두 포함)
             const items1 = [...t1];
             const items2 = [...t2];
 
@@ -1277,9 +1277,10 @@
             const removed = [];
             const added = [];
 
+            // 1단계: items1의 각 글자를 items2에서 찾기
             for (let i = 0; i < items1.length; i++) {
                 let bestIdx = -1;
-                let bestSim = 0.99;  // 글자는 같아야만 매칭
+                let bestSim = 0.99;  // 완전히 같은 글자만 매칭
                 
                 for (let j = 0; j < items2.length; j++) {
                     if (!matchMap.has(j)) {
@@ -1298,6 +1299,7 @@
                 }
             }
 
+            // 2단계: items2에서 매칭되지 않은 글자 찾기
             for (let i = 0; i < items2.length; i++) {
                 if (!matchMap.has(i)) {
                     added.push(i);
@@ -1321,32 +1323,37 @@
                 }
             }).join('');
 
-            const textSim = similarity(t1, t2);
-            
-            // 차이가 있으면 유사도 감소
-            let adjustedSim = textSim;
+            // 최종 유사도 계산 - 중요: 차이가 1개라도 있으면 절대 100%가 아님
             const totalDifferences = removed.length + added.length;
-            if (totalDifferences > 0) {
-                // 차이 개수만큼 유사도를 감소 (최소 0%)
-                const maxLength = Math.max(t1.length, t2.length);
-                const differencePenalty = totalDifferences / maxLength;
-                adjustedSim = Math.max(0, textSim - differencePenalty);
-            }
             
-            const isSame = adjustedSim > 0.99;
+            let finalSimilarity;
+            if (totalDifferences === 0) {
+                // 완벽하게 같을 때만 100%
+                finalSimilarity = 1.0;
+            } else {
+                // 차이가 1개라도 있으면 최대 99% (절대로 100% 아님)
+                finalSimilarity = Math.min(adjustedSim, 0.99);
+                // 혹시 99%가 넘어가지 않도록 추가 확인
+                if (finalSimilarity >= 0.99) {
+                    finalSimilarity = 0.99;
+                }
+            }
+
+            const isSame = totalDifferences === 0;  // 완벽하게 같을 때만 true
 
             document.getElementById('txt-result-box').className = isSame ? 'result-box show' : 'result-box show different';
             document.getElementById('txt-result-box').innerHTML = `
                 <div class="result-title">${isSame ? '✓ 텍스트가 동일합니다' : '✗ 텍스트가 다릅니다'}</div>
-                <div class="result-text">유사도: ${Math.round(adjustedSim * 100)}%</div>
+                <div class="result-text">유사도: ${Math.round(finalSimilarity * 100)}%</div>
             `;
 
             document.getElementById('txt-diff1').innerHTML = diff1HTML || '<div class="empty-state">(텍스트 없음)</div>';
             document.getElementById('txt-diff2').innerHTML = diff2HTML || '<div class="empty-state">(텍스트 없음)</div>';
 
-            document.getElementById('txt-similarity').textContent = Math.round(adjustedSim * 100) + '%';
-            document.getElementById('txt-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
-            document.getElementById('txt-different').textContent = removed.length + added.length;
+            // 유사도 표시 - 차이가 있으면 절대 100%가 아님
+            document.getElementById('txt-similarity').textContent = Math.round(finalSimilarity * 100) + '%';
+            document.getElementById('txt-matched').textContent = matchedCount;
+            document.getElementById('txt-different').textContent = totalDifferences;
 
             document.getElementById('txt-result-box').classList.add('show');
             document.getElementById('txt-stats').classList.add('show');
