@@ -377,6 +377,13 @@
             border-color: var(--danger);
         }
 
+        .result-box.review {
+            border-color: #FF5E00;
+            background: rgba(255, 94, 0, 0.06);
+        }
+
+        .stat-value.review { color: #FF5E00; }
+
         .result-title {
             font-weight: 700;
             font-size: 1.1rem;
@@ -881,7 +888,7 @@
                         <div class="upload-hint">JPG, PNG, GIF 파일</div>
                         <img id="preview1" class="preview-image" style="display: none;">
                     </div>
-                    <input type="file" id="img-file1" accept="image/*">
+                    <input type="file" id="img-file1" accept="image/*" onchange="handleImgSelect(event, 1)">
                 </div>
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -895,7 +902,7 @@
                         <div class="upload-hint">JPG, PNG, GIF 파일</div>
                         <img id="preview2" class="preview-image" style="display: none;">
                     </div>
-                    <input type="file" id="img-file2" accept="image/*">
+                    <input type="file" id="img-file2" accept="image/*" onchange="handleImgSelect(event, 2)">
                 </div>
             </div>
 
@@ -939,6 +946,10 @@
                 <div class="stat-card">
                     <div class="stat-value danger" id="img-different">0</div>
                     <div class="stat-label">차이</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value review" id="img-review">0</div>
+                    <div class="stat-label">확인필요</div>
                 </div>
             </div>
 
@@ -994,6 +1005,13 @@
                         <div id="img-diff-2-only" style="background: #f5f5f5; padding: 1rem; border-radius: 6px; font-size: 0.9rem; line-height: 2; max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0;"></div>
                     </div>
                 </div>
+
+                <div style="margin-top: 2rem;">
+                    <div class="panel-header" style="background: rgba(255, 94, 0, 0.12); color: var(--text); margin-bottom: 1rem;">
+                        🟧 확인 필요 — 자동 판정하지 않은 항목
+                    </div>
+                    <div id="img-diff-review" style="background: #fffaf5; padding: 1rem; border-radius: 6px; font-size: 0.9rem; line-height: 2; max-height: 300px; overflow-y: auto; border: 1px solid #ffd9bd;"></div>
+                </div>
             </div>
 
             <div id="img-legend" class="legend-box" style="display: none;">
@@ -1001,14 +1019,18 @@
                 <div class="legend-items">
                     <div class="legend-item">
                         <span class="legend-color" style="background: rgba(255, 215, 0, 0.4); border: 2px solid #FFD700;"></span>
-                        <span><strong>황금색 하이라이트</strong> - 파일 1에서 인식된 텍스트 영역</span>
+                        <span><strong>황금색</strong> - 파일 1에만 있는 텍스트 (차이)</span>
                     </div>
                     <div class="legend-item">
-                        <span class="legend-color" style="background: rgba(0, 255, 0, 0.4); border: 2px solid #00FF00;"></span>
-                        <span><strong>라임색 하이라이트</strong> - 파일 2에서 인식된 텍스트 영역</span>
+                        <span class="legend-color" style="background: rgba(0, 255, 0, 0.35); border: 2px solid #00FF00;"></span>
+                        <span><strong>라임색</strong> - 파일 2에만 있는 텍스트 (차이)</span>
                     </div>
                     <div class="legend-item">
-                        <span style="font-size: 0.85rem; color: #666;">💡 하단의 텍스트 목록과 함께 확인하면 정확한 차이를 파악할 수 있습니다.</span>
+                        <span class="legend-color" style="background: rgba(255, 94, 0, 0.35); border: 2px solid #FF5E00;"></span>
+                        <span><strong>주황색</strong> - 확인 필요 (자동 판정하지 않음)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="font-size: 0.85rem; color: #666;">⚠️ 주황색 항목이 하나라도 있으면 유사도를 <strong>보류</strong>로 표시합니다. 반드시 원본을 직접 확인하세요.</span>
                     </div>
                 </div>
             </div>
@@ -1024,7 +1046,11 @@
             <div class="info-title">💡 사용 팁</div>
             <p>
                 <strong>📝 텍스트 비교:</strong> 직접 입력 또는 TXT 파일 업로드. 상세 비교/문장 단위로 비교합니다.<br>
-                <strong>📄 이미지 비교:</strong> JPG, PNG, GIF 파일을 업로드하세요. 자동으로 OCR 인식하여 **이미지에 색상 하이라이트 표시** + **텍스트 목록** 함께 보여줍니다.
+                <strong>📄 이미지 비교:</strong> JPG, PNG, GIF 파일을 업로드하면 브라우저에서 OCR로 인식해 차이를 표시합니다.<br>
+                <strong>⚠️ 판정 원칙:</strong> 항목 위치는 고정하지 않고 인식된 내용으로만 대조합니다.
+                OCR이 불확실하거나 이미지가 흐리면 임의로 판정하지 않고 <strong>확인필요</strong>로 표시합니다.
+                확인필요가 있으면 유사도는 <strong>보류</strong>가 되니, 최종 판단은 사람이 원본으로 하세요.<br>
+                <strong>🔒 보안:</strong> 파일은 서버로 전송되지 않으며 브라우저 안에서만 처리됩니다.
             </p>
         </div>
     </div>
@@ -1177,34 +1203,58 @@
         const upload1 = document.getElementById('upload1');
         const upload2 = document.getElementById('upload2');
 
-        imgFile1.addEventListener('change', (e) => handleImgSelect(e, 1));
-        imgFile2.addEventListener('change', (e) => handleImgSelect(e, 2));
+        // 파일 input 이벤트는 HTML의 onchange로 직접 처리됨
 
         function handleImgSelect(e, num) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const preview = num === 1 ? preview1 : preview2;
-            const box = num === 1 ? upload1 : upload2;
-            const deleteBtn = num === 1 ? document.getElementById('delete-img1') : document.getElementById('delete-img2');
-            const filenameEl = num === 1 ? document.getElementById('filename1') : document.getElementById('filename2');
-            
-            // 파일명 표시
-            filenameEl.textContent = '📁 ' + file.name;
-            
-            // 이미지 미리보기
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                preview.src = event.target.result;
-                preview.style.display = 'block';
-                box.classList.add('has-file');
-                deleteBtn.style.display = 'block';
-
-                if (imgFile1.files[0] && imgFile2.files[0]) {
-                    performOCR();
+            try {
+                const file = e.target.files[0];
+                if (!file) {
+                    console.warn('No file selected');
+                    return;
                 }
-            };
-            reader.readAsDataURL(file);
+
+                console.log(`File ${num} selected:`, file.name);
+
+                const preview = num === 1 ? preview1 : preview2;
+                const box = num === 1 ? upload1 : upload2;
+                const deleteBtn = num === 1 ? document.getElementById('delete-img1') : document.getElementById('delete-img2');
+                const filenameEl = num === 1 ? document.getElementById('filename1') : document.getElementById('filename2');
+                
+                if (!preview || !box || !deleteBtn || !filenameEl) {
+                    console.error('Required DOM elements not found');
+                    return;
+                }
+
+                // 파일명 표시
+                filenameEl.textContent = '📁 ' + file.name;
+                
+                // 이미지 미리보기
+                const reader = new FileReader();
+                reader.onerror = (error) => {
+                    console.error('FileReader error:', error);
+                    showStatus('error', '파일을 읽을 수 없습니다');
+                };
+                reader.onload = (event) => {
+                    try {
+                        preview.src = event.target.result;
+                        preview.style.display = 'block';
+                        box.classList.add('has-file');
+                        deleteBtn.style.display = 'block';
+
+                        if (imgFile1.files[0] && imgFile2.files[0]) {
+                            console.log('Both files selected, starting OCR');
+                            performOCR();
+                        }
+                    } catch (error) {
+                        console.error('Preview load error:', error);
+                        showStatus('error', '이미지 미리보기 오류');
+                    }
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('handleImgSelect error:', error);
+                showStatus('error', '파일 처리 오류');
+            }
         }
 
         document.querySelectorAll('#img-mode-selector .mode-btn').forEach(btn => {
@@ -1320,30 +1370,41 @@
                 }
             }).join(' ');
 
-            const textSim = similarity(t1, t2);
-            
-            // 차이가 있으면 절대 100% 아님
+
+            // 최종 유사도 계산
+            // 단어 개수로 계산하면 삭제+추가가 이중 계산되어 음수가 나올 수 있으므로,
+            // 전체 텍스트의 글자 단위 유사도(0~1)를 기준으로 삼는다.
             const totalDifferences = removed.length + added.length;
-            let finalSim = textSim;
-            if (totalDifferences > 0) {
-                // 차이가 1개라도 있으면 최대 99%
-                finalSim = Math.min(textSim, 0.99);
+            let finalSim;
+
+            if (totalDifferences === 0) {
+                // 차이가 전혀 없을 때만 100%
+                finalSim = 1.0;
+            } else {
+                // 글자 단위 유사도는 항상 0~1 → 음수 불가
+                const charSim = similarity(t1, t2);
+                // 차이가 1개라도 있으면 100%가 될 수 없도록 99%로 제한
+                finalSim = Math.min(Math.max(charSim, 0), 0.99);
             }
-            
+
             const isSame = totalDifferences === 0;  // 완벽하게 같을 때만 true
+
+            // 표시값을 먼저 확정한다 (0% 미만/100% 초과 불가, 결과박스와 통계가 항상 동일)
+            const rawPercentage = Math.round(finalSim * 100);
+            const safePercentage = Math.max(0, Math.min(rawPercentage, totalDifferences > 0 ? 99 : 100));
 
             document.getElementById('txt-result-box').className = isSame ? 'result-box show' : 'result-box show different';
             document.getElementById('txt-result-box').innerHTML = `
                 <div class="result-title">${isSame ? '✓ 텍스트가 동일합니다' : '✗ 텍스트가 다릅니다'}</div>
-                <div class="result-text">유사도: ${Math.round(finalSim * 100)}%</div>
+                <div class="result-text">유사도: ${safePercentage}% | 차이: ${totalDifferences}개</div>
             `;
 
             document.getElementById('txt-diff1').innerHTML = diff1HTML || '<div class="empty-state">(텍스트 없음)</div>';
             document.getElementById('txt-diff2').innerHTML = diff2HTML || '<div class="empty-state">(텍스트 없음)</div>';
 
-            document.getElementById('txt-similarity').textContent = Math.round(finalSim * 100) + '%';
+            document.getElementById('txt-similarity').textContent = safePercentage + '%';
             document.getElementById('txt-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
-            document.getElementById('txt-different').textContent = removed.length + added.length;
+            document.getElementById('txt-different').textContent = totalDifferences;
 
             document.getElementById('txt-result-box').classList.add('show');
             document.getElementById('txt-stats').classList.add('show');
@@ -1420,15 +1481,36 @@
                     return;
                 }
 
+                // 이전 결과 초기화 (이전 파일의 데이터가 섞이지 않도록)
+                pageCanvases1 = []; pageCanvases2 = [];
+                pageWordData1 = []; pageWordData2 = [];
+
                 extractedText1 = await processFile(file1, 1);
                 extractedText2 = await processFile(file2, 2);
+
                 document.getElementById('progress-section').style.display = 'none';
                 showImgComparison();
-                showStatus('success', '✓ 파일 처리 완료!');
+                showStatus('success', '✓ 파일 처리 완료');
             } catch (error) {
-                console.error('에러:', error);
-                showStatus('error', '❌ ' + error.message);
+                // OCR이 실패하면 임의의 값으로 진행하지 않는다
+                console.error('performOCR 오류:', error);
                 document.getElementById('progress-section').style.display = 'none';
+                showStatus('error', '❌ OCR 처리 실패 — 판정하지 않았습니다');
+
+                const box = document.getElementById('img-result-box');
+                if (box) {
+                    box.className = 'result-box show review';
+                    box.innerHTML =
+                        '<div class="result-title">⚠️ 확인 필요 — OCR 처리에 실패했습니다</div>'
+                        + '<div class="result-text">비교 결과를 생성하지 않았습니다. '
+                        + '더 선명한 이미지로 다시 시도하거나 원본을 직접 대조하세요.</div>';
+                    box.classList.add('show');
+                }
+                setStat('img-similarity', '확인필요');
+                setStat('img-matched', '—');
+                setStat('img-different', '—');
+                setStat('img-review', '—');
+                document.getElementById('img-stats').classList.add('show');
             }
         }
 
@@ -1446,58 +1528,83 @@
                         try {
                             const imgElement = new Image();
                             imgElement.onload = async () => {
-                                // Canvas에 이미지 그리기
-                                const canvas = document.createElement('canvas');
-                                canvas.width = imgElement.width;
-                                canvas.height = imgElement.height;
-                                const ctx = canvas.getContext('2d');
-                                ctx.drawImage(imgElement, 0, 0);
-                                
-                                // Canvas 저장
-                                const canvases = fileNum === 1 ? pageCanvases1 : pageCanvases2;
-                                canvases.push(canvas);
+                                try {
+                                    // Canvas에 이미지 그리기
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = imgElement.width;
+                                    canvas.height = imgElement.height;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(imgElement, 0, 0);
+                                    
+                                    // Canvas 저장
+                                    const canvases = fileNum === 1 ? pageCanvases1 : pageCanvases2;
+                                    canvases.push(canvas);
 
-                                // OCR 처리 - 상세 정보 포함
-                                const result = await Tesseract.recognize(e.target.result, 'kor+eng', {
-                                    logger: (progress) => {
-                                        const percent = Math.round(progress.progress * 100);
-                                        if (fileNum === 1) {
-                                            document.getElementById('progress1').textContent = percent + '%';
-                                            document.getElementById('progress-fill1').style.width = percent + '%';
-                                        } else {
-                                            document.getElementById('progress2').textContent = percent + '%';
-                                            document.getElementById('progress-fill2').style.width = percent + '%';
-                                        }
+                                    // OCR 처리 - 타임아웃 추가
+                                    let result;
+                                    try {
+                                        result = await Promise.race([
+                                            Tesseract.recognize(e.target.result, 'kor+eng', {
+                                                logger: (progress) => {
+                                                    const percent = Math.round(progress.progress * 100);
+                                                    if (fileNum === 1) {
+                                                        if (document.getElementById('progress1')) {
+                                                            document.getElementById('progress1').textContent = percent + '%';
+                                                        }
+                                                        if (document.getElementById('progress-fill1')) {
+                                                            document.getElementById('progress-fill1').style.width = percent + '%';
+                                                        }
+                                                    } else {
+                                                        if (document.getElementById('progress2')) {
+                                                            document.getElementById('progress2').textContent = percent + '%';
+                                                        }
+                                                        if (document.getElementById('progress-fill2')) {
+                                                            document.getElementById('progress-fill2').style.width = percent + '%';
+                                                        }
+                                                    }
+                                                }
+                                            }),
+                                            new Promise((_, reject) => setTimeout(() => reject(new Error('OCR 타임아웃')), 60000)) // 60초 타임아웃
+                                        ]);
+                                    } catch (ocrError) {
+                                        console.warn('OCR 처리 실패, 빈 텍스트로 진행:', ocrError);
+                                        result = { data: { text: '', words: [] } };
                                     }
-                                });
 
-                                const { data } = result;
-                                const text = data.text;
+                                    const { data } = result;
+                                    const text = data.text || '';
 
-                                // Word-level 정보 추출
-                                const words = [];
-                                if (data.words) {
-                                    data.words.forEach(word => {
-                                        words.push({
-                                            text: word.text,
-                                            confidence: word.confidence,
-                                            bbox: [
-                                                word.bbox.x0,
-                                                word.bbox.y0,
-                                                word.bbox.x1,
-                                                word.bbox.y1
-                                            ]
+                                    // Word-level 정보 추출
+                                    const words = [];
+                                    if (data.words && Array.isArray(data.words)) {
+                                        data.words.forEach(word => {
+                                            if (word && word.text && word.bbox) {
+                                                words.push({
+                                                    text: word.text,
+                                                    // Tesseract는 0~100으로 반환 → 0~1로 정규화
+                                                    confidence: Math.max(0, Math.min(1, (word.confidence || 0) / 100)),
+                                                    bbox: [
+                                                        word.bbox.x0 || 0,
+                                                        word.bbox.y0 || 0,
+                                                        word.bbox.x1 || 0,
+                                                        word.bbox.y1 || 0
+                                                    ]
+                                                });
+                                            }
                                         });
+                                    }
+
+                                    const wordDataList = fileNum === 1 ? pageWordData1 : pageWordData2;
+                                    wordDataList.push({
+                                        text: text,
+                                        words: words
                                     });
+
+                                    resolve(text.trim());
+                                } catch (error) {
+                                    console.error('이미지 처리 오류:', error);
+                                    reject(new Error('이미지 처리 실패'));
                                 }
-
-                                const wordDataList = fileNum === 1 ? pageWordData1 : pageWordData2;
-                                wordDataList.push({
-                                    text: text,
-                                    words: words
-                                });
-
-                                resolve(text.trim());
                             };
                             imgElement.onerror = () => {
                                 reject(new Error('이미지 로드 실패'));
@@ -1584,245 +1691,245 @@
             }
         }
 
+        // ===== 이미지 비교 판정 기준 =====
+        // 고정 좌표를 쓰지 않고, OCR이 인식한 단어의 내용과 bbox만으로 판정한다.
+        const CONF_DOUBT = 0.60;      // 이 미만이면 OCR 결과를 신뢰하지 않음 → 확인필요
+        const CONF_PAGE_MIN = 0.65;   // 페이지 평균 신뢰도가 이 미만이면 전체 확인필요
+        const MATCH_AMBIGUOUS = 0.80; // 유사하지만 동일하지 않음 → 자동 판정 금지, 확인필요
+        const MIN_WORDS = 3;          // 인식 단어가 이보다 적으면 판정 불가
+
+        function getWords(pageWordData) {
+            if (!pageWordData || pageWordData.length === 0) return [];
+            const words = pageWordData[0].words || [];
+            return words.filter(w => {
+                if (!w || typeof w.text !== 'string') return false;
+                const t = w.text.trim();
+                if (t.length === 0) return false;
+                if (/^[^\w\s]+$/.test(t)) return false;   // 바코드 등 기호만
+                return true;
+            });
+        }
+
+        function meanConfidence(words) {
+            if (words.length === 0) return 0;
+            const sum = words.reduce((a, w) => a + (w.confidence || 0), 0);
+            return sum / words.length;
+        }
+
+        function renderCanvas(sourceCanvas, targetId, noPreviewId) {
+            if (!sourceCanvas) return null;
+            const target = document.getElementById(targetId);
+            if (!target) return null;
+            target.width = sourceCanvas.width;
+            target.height = sourceCanvas.height;
+            const ctx = target.getContext('2d');
+            ctx.drawImage(sourceCanvas, 0, 0);
+            target.style.display = 'block';
+            const np = document.getElementById(noPreviewId);
+            if (np) np.style.display = 'none';
+            return target;
+        }
+
+        function buildList(items, emptyMsg) {
+            if (!items || items.length === 0) {
+                return '<div style="color:#999;padding:20px;text-align:center;font-size:0.9rem;">' + emptyMsg + '</div>';
+            }
+            let html = '<div style="line-height:1.9;">';
+            items.forEach((item, idx) => {
+                const conf = item.confidence !== undefined
+                    ? ' <span style="color:#999;font-size:0.8rem;">(신뢰도 ' + Math.round(item.confidence * 100) + '%)</span>'
+                    : '';
+                const note = item.note ? ' <span style="color:#b45309;font-size:0.8rem;">' + escapeHtml(item.note) + '</span>' : '';
+                html += '<div style="padding:6px 8px;border-bottom:1px solid #ddd;">'
+                    + '<span style="color:#999;font-weight:600;display:inline-block;min-width:20px;">' + (idx + 1) + '.</span>'
+                    + '<span style="margin-left:8px;word-break:break-word;">' + escapeHtml(item.text) + '</span>'
+                    + conf + note
+                    + '</div>';
+            });
+            html += '</div>';
+            return html;
+        }
+
         function showImgComparison() {
-            const t1 = extractedText1;
-            const t2 = extractedText2;
+            const words1 = getWords(pageWordData1);
+            const words2 = getWords(pageWordData2);
 
-            // Word 객체 배열에서 confidence가 높은 단어만 필터링 (0.6 이상)
-            const HIGH_CONFIDENCE = 0.6;
-            
-            let words1 = [];
-            let words2 = [];
-            
-            if (pageWordData1.length > 0 && pageWordData1[0].words) {
-                words1 = pageWordData1[0].words
-                    .filter(w => w.confidence >= HIGH_CONFIDENCE)
-                    .map(w => w.text);
-            }
-            
-            if (pageWordData2.length > 0 && pageWordData2[0].words) {
-                words2 = pageWordData2[0].words
-                    .filter(w => w.confidence >= HIGH_CONFIDENCE)
-                    .map(w => w.text);
-            }
-            
-            // 신뢰도 기반 텍스트 재구성
-            const t1_highconf = words1.join(' ');
-            const t2_highconf = words2.join(' ');
-            
-            console.log('신뢰도 필터링: 원본', t1.split(' ').length, '→ 필터됨', words1.length);
-            console.log('신뢰도 필터링: 원본', t2.split(' ').length, '→ 필터됨', words2.length);
+            // 원본 이미지는 항상 표시한다 (판정과 무관)
+            const cv1 = renderCanvas(pageCanvases1[0], 'canvas1', 'no-preview1');
+            const cv2 = renderCanvas(pageCanvases2[0], 'canvas2', 'no-preview2');
 
-            // 단어 단위로 비교
-            let items1 = words1;
-            let items2 = words2;
-            
-            // 로고/바코드 같은 의미 없는 텍스트 제거
-            items1 = filterWordsWithConfidence(items1);
-            items2 = filterWordsWithConfidence(items2);
-            
-            console.log('로고 필터링 후:', items1.length, items2.length);
-
-            // Canvas 표시
-            if (pageCanvases1.length > 0) {
-                const originalCanvas1 = pageCanvases1[0];
-                const highlightCanvas1 = document.createElement('canvas');
-                highlightCanvas1.width = originalCanvas1.width;
-                highlightCanvas1.height = originalCanvas1.height;
-                const ctx1 = highlightCanvas1.getContext('2d');
-                ctx1.drawImage(originalCanvas1, 0, 0);
-
-                const canvas1 = document.getElementById('canvas1');
-                canvas1.width = highlightCanvas1.width;
-                canvas1.height = highlightCanvas1.height;
-                const ctxDisplay1 = canvas1.getContext('2d');
-                ctxDisplay1.drawImage(highlightCanvas1, 0, 0);
-                canvas1.style.display = 'block';
-                document.getElementById('no-preview1').style.display = 'none';
-            }
-
-            if (pageCanvases2.length > 0) {
-                const originalCanvas2 = pageCanvases2[0];
-                const highlightCanvas2 = document.createElement('canvas');
-                highlightCanvas2.width = originalCanvas2.width;
-                highlightCanvas2.height = originalCanvas2.height;
-                const ctx2 = highlightCanvas2.getContext('2d');
-                ctx2.drawImage(originalCanvas2, 0, 0);
-
-                const canvas2 = document.getElementById('canvas2');
-                canvas2.width = highlightCanvas2.width;
-                canvas2.height = highlightCanvas2.height;
-                const ctxDisplay2 = canvas2.getContext('2d');
-                ctxDisplay2.drawImage(highlightCanvas2, 0, 0);
-                canvas2.style.display = 'block';
-                document.getElementById('no-preview2').style.display = 'none';
-            }
-
-            // 매칭 알고리즘
-            const matchMap = new Map();
-            const removed = [];
-            const added = [];
-
-            for (let i = 0; i < items1.length; i++) {
-                let bestIdx = -1;
-                let bestSim = 0.92;  // 임계값 상향: 92% 이상만 매칭
-                
-                for (let j = 0; j < items2.length; j++) {
-                    if (!matchMap.has(j)) {
-                        const sim = normalizedSimilarity(items1[i], items2[j]);
-                        if (sim > bestSim) {
-                            bestSim = sim;
-                            bestIdx = j;
-                        }
-                    }
-                }
-                
-                if (bestIdx !== -1) {
-                    matchMap.set(bestIdx, i);
-                    console.log('매칭:', items1[i], '=', items2[bestIdx], '유사도:', bestSim);
-                } else {
-                    removed.push({ idx: i, text: items1[i] });
-                    console.log('제거됨(파일1):', items1[i]);
-                }
-            }
-
-            for (let i = 0; i < items2.length; i++) {
-                if (!matchMap.has(i)) {
-                    added.push({ idx: i, text: items2[i] });
-                    console.log('추가됨(파일2):', items2[i]);
-                }
-            }
-
-            // 차이나는 텍스트만 하이라이트
-            if (pageCanvases1.length > 0 && pageWordData1.length > 0 && removed.length > 0) {
-                highlightDifferenceWords(document.getElementById('canvas1'), pageWordData1[0].words, removed, 'yellow');
-            }
-
-            if (pageCanvases2.length > 0 && pageWordData2.length > 0 && added.length > 0) {
-                highlightDifferenceWords(document.getElementById('canvas2'), pageWordData2[0].words, added, 'lime');
-            }
-
-            // 차이 목록 생성 (HTML 형식으로 한줄씩)
-            let diff1HTML = '<div style="line-height: 2;">';
-            removed.forEach((item, idx) => {
-                diff1HTML += `<div style="padding: 6px 8px; border-bottom: 1px solid #ddd;">
-                    <span style="color: #999; font-weight: 600; min-width: 20px; display: inline-block;">${idx + 1}.</span>
-                    <span style="margin-left: 8px; word-break: break-word;">${escapeHtml(item.text)}</span>
-                </div>`;
-            });
-            diff1HTML += '</div>';
-            
-            let diff2HTML = '<div style="line-height: 2;">';
-            added.forEach((item, idx) => {
-                diff2HTML += `<div style="padding: 6px 8px; border-bottom: 1px solid #ddd;">
-                    <span style="color: #999; font-weight: 600; min-width: 20px; display: inline-block;">${idx + 1}.</span>
-                    <span style="margin-left: 8px; word-break: break-word;">${escapeHtml(item.text)}</span>
-                </div>`;
-            });
-            diff2HTML += '</div>';
-
-            document.getElementById('img-diff-1-only').innerHTML = removed.length > 0 ? diff1HTML : '<div style="color: #999; padding: 20px; text-align: center; font-size: 0.9rem;">(차이 없음)</div>';
-            document.getElementById('img-diff-2-only').innerHTML = added.length > 0 ? diff2HTML : '<div style="color: #999; padding: 20px; text-align: center; font-size: 0.9rem;">(차이 없음)</div>';
-
-            // 유사도 계산 (정규화된 비교 - 신뢰도 필터링된 텍스트)
-            const textSim = normalizedSimilarity(t1_highconf, t2_highconf);
-            const isSame = textSim > 0.99;  // 99% 이상만 동일
-
-            document.getElementById('img-result-box').className = isSame ? 'result-box show' : 'result-box show different';
-            document.getElementById('img-result-box').innerHTML = `
-                <div class="result-title">${isSame ? '✓ 파일이 동일합니다' : '✗ 파일이 다릅니다'}</div>
-                <div class="result-text">유사도: ${Math.round(textSim * 100)}% | 차이 항목: ${removed.length + added.length}개</div>
-            `;
-
-            document.getElementById('img-similarity').textContent = Math.round(textSim * 100) + '%';
-            document.getElementById('img-matched').textContent = Math.max(items1.length - removed.length, items2.length - added.length);
-            document.getElementById('img-different').textContent = removed.length + added.length;
-
-            // 모든 섹션 표시
-            document.getElementById('img-result-box').classList.add('show');
             document.getElementById('img-stats').classList.add('show');
             document.getElementById('img-compare').classList.add('show');
+            document.getElementById('img-result-box').classList.add('show');
             document.getElementById('img-diff-details').style.display = 'block';
-            document.getElementById('img-buttons').classList.add('show');
-            document.getElementById('img-mode-selector').classList.add('show');
             document.getElementById('img-legend').style.display = 'block';
-        }
 
-        function highlightDifferenceWords(canvas, words, diffItems, color) {
-            if (!canvas || !words || words.length === 0 || diffItems.length === 0) return;
+            const conf1 = meanConfidence(words1);
+            const conf2 = meanConfidence(words2);
 
-            const colorStyle = color === 'yellow' 
-                ? { fill: 'rgba(255, 215, 0, 0.4)', stroke: '#FFD700' }
-                : { fill: 'rgba(0, 255, 0, 0.4)', stroke: '#00FF00' };
+            // --- 판정 불가 조건: 임의로 처리하지 않고 확인필요로 종료 ---
+            const blockers = [];
+            if (words1.length < MIN_WORDS) blockers.push('파일 1에서 인식된 텍스트가 거의 없습니다');
+            if (words2.length < MIN_WORDS) blockers.push('파일 2에서 인식된 텍스트가 거의 없습니다');
+            if (words1.length >= MIN_WORDS && conf1 < CONF_PAGE_MIN) {
+                blockers.push('파일 1의 OCR 평균 신뢰도가 낮습니다 (' + Math.round(conf1 * 100) + '%)');
+            }
+            if (words2.length >= MIN_WORDS && conf2 < CONF_PAGE_MIN) {
+                blockers.push('파일 2의 OCR 평균 신뢰도가 낮습니다 (' + Math.round(conf2 * 100) + '%)');
+            }
 
-            const ctx = canvas.getContext('2d');
-            
-            // 차이나는 각 단어에 대해 Canvas에서 찾아서 하이라이트
-            diffItems.forEach(diffItem => {
-                const diffTextNorm = normalizeText(diffItem.text);
-                
-                // words 배열에서 해당 텍스트를 찾기
-                words.forEach(word => {
-                    if (word && word.text && word.bbox) {
-                        const wordNorm = normalizeText(word.text);
-                        // 정규화된 텍스트가 일치하면 하이라이트
-                        if (wordNorm === diffTextNorm) {
-                            const [x0, y0, x1, y1] = word.bbox;
-                            
-                            // 하이라이트 박스 그리기
-                            ctx.fillStyle = colorStyle.fill;
-                            ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-                            
-                            ctx.strokeStyle = colorStyle.stroke;
-                            ctx.lineWidth = 2;
-                            ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-                        }
+            if (blockers.length > 0) {
+                setStat('img-similarity', '확인필요');
+                setStat('img-matched', '—');
+                setStat('img-different', '—');
+                setStat('img-review', '—');
+
+                document.getElementById('img-result-box').className = 'result-box show review';
+                document.getElementById('img-result-box').innerHTML =
+                    '<div class="result-title">⚠️ 확인 필요 — 자동 판정하지 않았습니다</div>'
+                    + '<div class="result-text" style="text-align:left;max-width:640px;margin:0.75rem auto 0;">'
+                    + blockers.map(b => '• ' + escapeHtml(b)).join('<br>')
+                    + '<br><br>이미지가 흐리거나 해상도가 낮으면 OCR이 글자를 놓칩니다. '
+                    + '더 선명한 이미지로 다시 시도하거나, 좌우 원본을 직접 눈으로 대조하세요.'
+                    + '</div>';
+
+                document.getElementById('img-diff-1-only').innerHTML = buildList([], '판정 보류');
+                document.getElementById('img-diff-2-only').innerHTML = buildList([], '판정 보류');
+                const rv = document.getElementById('img-diff-review');
+                if (rv) rv.innerHTML = buildList([], '판정 보류');
+                return;
+            }
+
+            // --- 내용 기반 매칭 (고정 좌표 미사용) ---
+            const used = new Set();
+            const matched = [];
+            const review = [];
+            const onlyIn1 = [];
+
+            for (let i = 0; i < words1.length; i++) {
+                const w1 = words1[i];
+                let bestIdx = -1;
+                let bestSim = 0;
+
+                for (let j = 0; j < words2.length; j++) {
+                    if (used.has(j)) continue;
+                    const sim = normalizedSimilarity(w1.text, words2[j].text);
+                    if (sim > bestSim) {
+                        bestSim = sim;
+                        bestIdx = j;
                     }
-                });
-            });
+                }
+
+                if (bestIdx === -1 || bestSim < MATCH_AMBIGUOUS) {
+                    // 대응되는 단어 없음 → 차이
+                    onlyIn1.push({ text: w1.text, confidence: w1.confidence, bbox: w1.bbox });
+                    continue;
+                }
+
+                const w2 = words2[bestIdx];
+                used.add(bestIdx);
+
+                const lowConf = (w1.confidence < CONF_DOUBT) || (w2.confidence < CONF_DOUBT);
+
+                if (bestSim >= 0.999 && !lowConf) {
+                    matched.push({ text: w1.text });
+                } else if (bestSim >= 0.999 && lowConf) {
+                    // 같아 보이지만 OCR 신뢰도가 낮음 → 임의 판정 금지
+                    review.push({
+                        text: w1.text + '  ↔  ' + w2.text,
+                        confidence: Math.min(w1.confidence, w2.confidence),
+                        note: '· OCR 신뢰도 낮음',
+                        bbox1: w1.bbox, bbox2: w2.bbox
+                    });
+                } else {
+                    // 비슷하지만 동일하지 않음 → 사람이 확인
+                    review.push({
+                        text: w1.text + '  ↔  ' + w2.text,
+                        confidence: Math.min(w1.confidence, w2.confidence),
+                        note: '· 유사도 ' + Math.round(bestSim * 100) + '%',
+                        bbox1: w1.bbox, bbox2: w2.bbox
+                    });
+                }
+            }
+
+            const onlyIn2 = [];
+            for (let j = 0; j < words2.length; j++) {
+                if (!used.has(j)) {
+                    onlyIn2.push({ text: words2[j].text, confidence: words2[j].confidence, bbox: words2[j].bbox });
+                }
+            }
+
+            // --- Canvas 하이라이트 (OCR bbox 기반, 고정 좌표 아님) ---
+            const STYLE_DIFF_1 = { fill: 'rgba(255,215,0,0.40)', stroke: '#FFD700' };
+            const STYLE_DIFF_2 = { fill: 'rgba(0,255,0,0.35)',   stroke: '#00FF00' };
+            const STYLE_REVIEW = { fill: 'rgba(255,94,0,0.35)',  stroke: '#FF5E00' };
+
+            drawBoxes(cv1, onlyIn1.map(x => x.bbox), STYLE_DIFF_1);
+            drawBoxes(cv2, onlyIn2.map(x => x.bbox), STYLE_DIFF_2);
+            drawBoxes(cv1, review.map(x => x.bbox1), STYLE_REVIEW);
+            drawBoxes(cv2, review.map(x => x.bbox2), STYLE_REVIEW);
+
+            // --- 결과 표시 ---
+            const diffCount = onlyIn1.length + onlyIn2.length;
+            const reviewCount = review.length;
+
+            document.getElementById('img-diff-1-only').innerHTML = buildList(onlyIn1, '(차이 없음)');
+            document.getElementById('img-diff-2-only').innerHTML = buildList(onlyIn2, '(차이 없음)');
+            const rv = document.getElementById('img-diff-review');
+            if (rv) rv.innerHTML = buildList(review, '(확인이 필요한 항목 없음)');
+
+            setStat('img-matched', matched.length);
+            setStat('img-different', diffCount);
+            setStat('img-review', reviewCount);
+
+            const box = document.getElementById('img-result-box');
+
+            if (reviewCount > 0) {
+                // 애매한 항목이 하나라도 있으면 유사도 숫자를 내지 않는다
+                setStat('img-similarity', '보류');
+                box.className = 'result-box show review';
+                box.innerHTML =
+                    '<div class="result-title">⚠️ 확인 필요 — ' + reviewCount + '개 항목</div>'
+                    + '<div class="result-text">확실한 차이 ' + diffCount + '개 · 일치 ' + matched.length + '개<br>'
+                    + '<span style="font-size:0.9em;color:#666;">애매한 항목은 자동으로 판정하지 않았습니다. '
+                    + '아래 목록과 주황색 표시 부분을 직접 확인하세요.</span></div>';
+            } else if (diffCount === 0) {
+                setStat('img-similarity', '100%');
+                box.className = 'result-box show';
+                box.innerHTML =
+                    '<div class="result-title">✓ 인식된 텍스트가 모두 일치합니다</div>'
+                    + '<div class="result-text">일치 ' + matched.length + '개 · 차이 0개 · 확인필요 0개</div>';
+            } else {
+                const total = matched.length + diffCount;
+                const sim = total > 0 ? matched.length / total : 0;
+                const pct = Math.min(Math.round(sim * 100), 99); // 차이가 있으면 100% 불가
+                setStat('img-similarity', pct + '%');
+                box.className = 'result-box show different';
+                box.innerHTML =
+                    '<div class="result-title">✗ 파일이 다릅니다</div>'
+                    + '<div class="result-text">차이 ' + diffCount + '개 · 일치 ' + matched.length + '개 · 확인필요 0개</div>';
+            }
         }
 
-        function drawDifferencesOnCanvas(canvases, items, diffIndices, color) {
-            if (canvases.length === 0 || diffIndices.length === 0) return;
+        function setStat(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
 
-            const canvas = canvases[0];
+        function drawBoxes(canvas, bboxes, style) {
+            if (!canvas || !bboxes || bboxes.length === 0) return;
             const ctx = canvas.getContext('2d');
-            
-            // 색상 선택 - 검은색 배경에서도 눈에 띄는 색상 사용
-            let boxColor, textColor, fillOpacity;
-            if (color === 'red') {
-                boxColor = '#FFD700';      // 황금색 (더 눈에 띔)
-                textColor = '#FFD700';
-                fillOpacity = 'rgba(255, 215, 0, 0.3)';  // 반투명 황금색
-            } else {
-                boxColor = '#00FF00';      // 라임색 (더 눈에 띔)
-                textColor = '#00FF00';
-                fillOpacity = 'rgba(0, 255, 0, 0.3)';    // 반투명 라임색
-            }
-            
-            ctx.strokeStyle = boxColor;
-            ctx.fillStyle = fillOpacity;
-            ctx.lineWidth = 3;  // 더 두꺼운 선
-
-            // 텍스트 레이블
-            let yPos = 30;
-            for (let idx of diffIndices) {
-                const text = items[idx];
-                const boxHeight = 20;
-                
-                ctx.fillRect(10, yPos, canvas.width - 20, boxHeight);
-                ctx.strokeRect(10, yPos, canvas.width - 20, boxHeight);
-                
-                // 텍스트 레이블 (더 진하고 큼)
-                ctx.fillStyle = textColor;
-                ctx.font = 'bold 14px Arial';
-                ctx.strokeStyle = '#000000';  // 검은색 테두리로 텍스트 강조
+            bboxes.forEach(bbox => {
+                if (!bbox || bbox.length < 4) return;
+                const [x0, y0, x1, y1] = bbox;
+                const w = x1 - x0, h = y1 - y0;
+                if (!(w > 0 && h > 0)) return;
+                ctx.fillStyle = style.fill;
+                ctx.fillRect(x0, y0, w, h);
+                ctx.strokeStyle = style.stroke;
                 ctx.lineWidth = 2;
-                ctx.strokeText(text.substring(0, 50), 15, yPos + 15);
-                ctx.fillText(text.substring(0, 50), 15, yPos + 15);
-                
-                yPos += 25;
-            }
+                ctx.strokeRect(x0, y0, w, h);
+            });
         }
 
         // 상태 메시지
